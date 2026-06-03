@@ -1,0 +1,53 @@
+{
+  "deck_id": "sample",
+  "slides": [
+    {
+      "slide_id": "s1",
+      "layout_type": "title",
+      "title": "Sr-Nd Isotope Systematics of the Hart Suite",
+      "blocks": []
+    },
+    {
+      "slide_id": "s2",
+      "layout_type": "bullet_evidence",
+      "title": "Motivation",
+      "blocks": [
+        {
+          "type": "bullets",
+          "items": [
+            "Crustal vs mantle source ambiguity",
+            "New high-precision MC-ICP-MS data",
+            "Goal: constrain petrogenesis"
+          ]
+        }
+      ]
+    },
+    {
+      "slide_id": "s3",
+      "layout_type": "two_column_table",
+      "title": "Isotopic Results",
+      "blocks": [
+        {
+          "type": "table",
+          "caption": "Table 2",
+          "columns": ["Sample", "87Sr/86Sr", "143Nd/144Nd"],
+          "rows": [
+            ["HT-1", "0.7041", "0.51286"],
+            ["HT-2", "0.7039", "0.51290"]
+          ]
+        }
+      ]
+    },
+    {
+      "slide_id": "s4",
+      "layout_type": "formula_banner",
+      "title": "Epsilon Nd",
+      "blocks": [
+        {
+          "type": "formula",
+          "latex": "\\varepsilon_{Nd}(t)=\\left[\\frac{(^{143}Nd/^{144}Nd)_s}{(^{143}Nd/^{144}Nd)_{CHUR}}-1\\right]\\times 10^4"
+        }
+      ]
+    }
+  ]
+}

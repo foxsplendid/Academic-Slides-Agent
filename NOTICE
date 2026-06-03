@@ -19,3 +19,9 @@ This project is a clean-room, independent implementation. It deliberately does
 NOT incorporate code, file structure, or copyrighted expression from any
 AGPL-licensed project (including PPTist, paper-ppt-agent, and PyMuPDF). Only
 ideas/requirements — which are not copyrightable — informed the design.
+
+------------------------------------------------------------------------
+Key runtime dependencies (all permissive — no copyleft):
+
+  - pydantic      (MIT)  — Slide-IR validation
+  - python-pptx   (MIT)  — native .pptx rendering
