@@ -140,10 +140,12 @@ class GenerationState(BaseModel):
     phase: Phase = Phase.INGESTING
     source_kind: Literal["pdf", "tex"] = "pdf"
     evidence: list[EvidenceAsset] = Field(default_factory=list)
+    tables: list[TableBlock] = Field(default_factory=list)
     outline: Optional[list[dict]] = None
     user_approved_outline: bool = False
     user_outline_edits: Optional[list[dict]] = None
     slides: list[SlideIR] = Field(default_factory=list)
+    output_path: Optional[str] = None
     template_id: Optional[str] = None
     critic_findings: list[str] = Field(default_factory=list)
     retry_count: int = 0

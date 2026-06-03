@@ -4,13 +4,14 @@ version = "0.1.0"
 description = "Provider-agnostic agents that produce Slide-IR for Academic-Slides-Agent."
 requires-python = ">=3.12"
 license = "Apache-2.0"
-dependencies = ["asa-slide-ir"]
+dependencies = ["asa-slide-ir", "asa-pptx-compiler", "langgraph>=0.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 
 [tool.uv.sources]
 asa-slide-ir = { path = "../core/ir", editable = true }
+asa-pptx-compiler = { path = "../core/compiler", editable = true }
 
 [build-system]
 requires = ["hatchling"]
