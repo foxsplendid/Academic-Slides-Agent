@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.0 |
+| **Version** | 0.1.1 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -255,13 +255,15 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
 - **Forbidden:** PyMuPDF/fitz (AGPL). Use `pypdfium2` for any PDF rasterization.
 
 ### 6.2 Formula (`packages/core/formula/`)
-- **v1 (ship this):** LaTeX → **SVG vector image** (server-side MathJax) → embed as picture.
-  Reliable, crisp at any zoom, simple.
-- **v2 (enhancement):** LaTeX → MathML (`latex2mathml`/pandoc) → **OMML** (Microsoft
-  `MML2OMML.XSL` XSLT) → native editable PowerPoint equation. Auto-fallback to v1 SVG on
-  low-confidence conversion.
-- **Regression test set (build early):** isotopes, `mhchem` chemistry, matrices, multiline
-  derivations, DL loss — these are where OMML breaks; they gate the formula module.
+- **v1 (shipped):** LaTeX → **high-DPI PNG** via matplotlib `mathtext` (pure-Python, in-process,
+  BSD; privacy-friendly, embeds directly through python-pptx `add_picture`). Unparseable input
+  returns `None` → compiler text fallback. Lives behind the injectable `FormulaRenderer` interface.
+- **v1.5 (enhancement):** higher-fidelity backend — MathJax → SVG/PNG (covers `mhchem` chemistry,
+  complex constructs) behind the **same** interface; swap in without touching the compiler.
+- **v2 (enhancement):** LaTeX → MathML → **OMML** (`MML2OMML.XSL` XSLT) → native editable
+  PowerPoint equation; auto-fallback to image on low-confidence conversion.
+- **Regression set:** isotopes, subscripts, fractions, Greek, sums, roots render via matplotlib;
+  `mhchem`/matrices fall back to text today and are covered by the v1.5 MathJax backend.
 
 ### 6.3 Tables (`packages/core/tables/`)
 - Normalize extracted/structured data → `TableBlock`; preserve significant figures & alignment.
@@ -333,3 +335,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | Date | Version | Change |
 |---|---|---|
 | 2026-06-03 | 0.1.0 | Initial constitution: Apache-2.0 clean-room; LLM-locked-to-IR; LangGraph; export-first v1; formula SVG-first; Evidence-Pool ingestion; license forbidden-list (PPTist/PyMuPDF). |
+| 2026-06-03 | 0.1.1 | Formula v1 changed from MathJax→SVG to **matplotlib mathtext→PNG** (in-process, BSD, privacy-friendly, direct python-pptx embedding); MathJax/SVG deferred to v1.5 behind the same `FormulaRenderer` interface. |
