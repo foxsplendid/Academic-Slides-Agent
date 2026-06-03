@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.1 |
+| **Version** | 0.1.2 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -274,10 +274,15 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
 - Compiler enforces fit (measure → shrink → spill). Learn from ppt-master (MIT) "follow your
   own .pptx template".
 
-### 6.5 Overflow / Overlap detection
-- **Primary (deterministic):** measure text bounding boxes (font metrics) before placement;
+### 6.5 Critic / Overflow / Overlap detection
+- **v1 (implemented, deterministic & AI-free):** `critique_deck` (in `asa_agents/critic.py`)
+  measures the **Slide-IR** — title/bullet/table sizes, layout↔block consistency, and dangling
+  figure `asset_id`s — and returns findings. The graph runs it **before** the Hard-Stop and
+  re-plans with the findings as feedback, bounded by `max_retries` (default 2); residual findings
+  still reach the human. Thresholds are module constants (`MAX_BULLETS`, `MAX_TABLE_ROWS`, …).
+- **Primary (future):** measure text bounding boxes (font metrics) before placement;
   overflow → shrink font → paginate/spill to a continuation slide.
-- **Secondary (final QA only):** optional VLM Critic renders the slide to image, flags
+- **Secondary (final QA only, v2):** optional VLM Critic renders the slide to image, flags
   overflow/overlap, loops back. Do not rely on VLM alone.
 - **Structural guard:** "template as constraint" — content only enters predefined boxes, so
   overlap is prevented by design.
@@ -336,3 +341,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 |---|---|---|
 | 2026-06-03 | 0.1.0 | Initial constitution: Apache-2.0 clean-room; LLM-locked-to-IR; LangGraph; export-first v1; formula SVG-first; Evidence-Pool ingestion; license forbidden-list (PPTist/PyMuPDF). |
 | 2026-06-03 | 0.1.1 | Formula v1 changed from MathJax→SVG to **matplotlib mathtext→PNG** (in-process, BSD, privacy-friendly, direct python-pptx embedding); MathJax/SVG deferred to v1.5 behind the same `FormulaRenderer` interface. |
+| 2026-06-03 | 0.1.2 | Critic §6.5 v1 landed: **deterministic, AI-free `critique_deck`** measuring Slide-IR + a **bounded `plan↔critic` retry loop** (feedback to planner, `max_retries`) running before the Hard-Stop. VLM critic stays v2. |

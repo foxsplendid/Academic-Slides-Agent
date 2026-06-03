@@ -1,0 +1,160 @@
+"""Critic + retry-loop tests.
+
+Each test maps to a scenario in openspec/changes/add-critic-loop/specs/critic/spec.md.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from langgraph.types import Command
+
+from slide_ir import (
+    BulletBlock,
+    EvidenceAsset,
+    FigureBlock,
+    GenerationState,
+    LayoutType,
+    SlideIR,
+    TableBlock,
+)
+from asa_agents import FakeLLM, critique_deck
+from asa_agents.graph import build_graph
+
+_EVIDENCE = [
+    EvidenceAsset(asset_id="fig1", kind="figure", content_ref="fig1.png", source="paper.pdf")
+]
+
+
+def _clean_slides() -> list[SlideIR]:
+    return [
+        SlideIR(slide_id="s1", layout_type=LayoutType.TITLE, title="A Study", blocks=[]),
+        SlideIR(
+            slide_id="s2",
+            layout_type=LayoutType.BULLET_EVIDENCE,
+            title="Motivation",
+            blocks=[BulletBlock(items=["a", "b"])],
+        ),
+        SlideIR(
+            slide_id="s3",
+            layout_type=LayoutType.FIGURE_CAPTION,
+            title="Result",
+            blocks=[FigureBlock(asset_id="fig1", caption="c")],
+        ),
+    ]
+
+
+def test_clean_deck_has_no_findings():
+    assert critique_deck(_clean_slides(), _EVIDENCE) == []
+
+
+def test_each_defect_is_flagged():
+    slides = [
+        # empty content slide + empty title
+        SlideIR(slide_id="empty", layout_type=LayoutType.BULLET_EVIDENCE, title="", blocks=[]),
+        # bullet overflow (8 > 7) + an over-long item
+        SlideIR(
+            slide_id="bul",
+            layout_type=LayoutType.BULLET_EVIDENCE,
+            title="x",
+            blocks=[BulletBlock(items=[str(i) for i in range(8)] )],
+        ),
+        # table overflow (7 cols, 13 rows)
+        SlideIR(
+            slide_id="tab",
+            layout_type=LayoutType.TWO_COLUMN_TABLE,
+            title="x",
+            blocks=[TableBlock(columns=[f"c{i}" for i in range(7)], rows=[["1"] * 7 for _ in range(13)])],
+        ),
+        # layout/block mismatch: formula_banner without a formula
+        SlideIR(slide_id="fb", layout_type=LayoutType.FORMULA_BANNER, title="x", blocks=[BulletBlock(items=["q"])]),
+        # dangling figure asset_id
+        SlideIR(
+            slide_id="fig",
+            layout_type=LayoutType.FIGURE_CAPTION,
+            title="x",
+            blocks=[FigureBlock(asset_id="ghost")],
+        ),
+    ]
+    findings = critique_deck(slides, _EVIDENCE)
+    joined = " || ".join(findings)
+    assert "empty title" in joined
+    assert "no blocks" in joined
+    assert "bullet list too long" in joined
+    assert "table too wide" in joined and "table too tall" in joined
+    assert "no formula block" in joined
+    assert "unknown asset_id 'ghost'" in joined
+
+
+# --- Retry loop in the graph -------------------------------------------------
+
+_DEFECT_DECK = json.dumps(
+    {
+        "deck_id": "j1",
+        "slides": [
+            {
+                "slide_id": "s1",
+                "layout_type": "bullet_evidence",
+                "title": "M",
+                "blocks": [{"type": "bullets", "items": [str(i) for i in range(9)]}],
+            }
+        ],
+    }
+)
+
+_CLEAN_DECK = json.dumps(
+    {
+        "deck_id": "j1",
+        "slides": [
+            {
+                "slide_id": "s1",
+                "layout_type": "bullet_evidence",
+                "title": "M",
+                "blocks": [{"type": "bullets", "items": ["a", "b"]}],
+            }
+        ],
+    }
+)
+
+
+def _init() -> dict:
+    return GenerationState(
+        job_id="j1",
+        evidence=[EvidenceAsset(asset_id="p1", kind="section_text", content_ref="t", source="paper.pdf")],
+    ).model_dump()
+
+
+def test_self_correction_reaches_approval_clean(tmp_path):
+    # First draft is defective; given feedback, the planner emits a clean deck.
+    llm = FakeLLM(_DEFECT_DECK, _CLEAN_DECK)
+    graph = build_graph(llm, out_dir=tmp_path)
+    cfg = {"configurable": {"thread_id": "c1"}}
+    graph.invoke(_init(), cfg)
+    snap = graph.get_state(cfg)
+    assert "approval" in snap.next  # reached the Hard-Stop
+    assert snap.values["critic_findings"] == []  # corrected
+    assert snap.values["retry_count"] == 1  # exactly one re-plan
+    assert len(llm.calls) == 2
+    # the retry prompt carried the feedback
+    assert "fix ALL of them" in llm.calls[1]["prompt"]
+
+
+def test_budget_exhaustion_still_reaches_human(tmp_path):
+    # Planner never fixes the defect; loop must stop after max_retries (default 2).
+    graph = build_graph(FakeLLM(_DEFECT_DECK), out_dir=tmp_path)
+    cfg = {"configurable": {"thread_id": "c2"}}
+    graph.invoke(_init(), cfg)
+    snap = graph.get_state(cfg)
+    assert "approval" in snap.next  # still handed to the human
+    assert snap.values["retry_count"] == 2  # max_retries
+    assert snap.values["critic_findings"]  # residual findings recorded
+
+
+def test_budget_exhaustion_then_approve_compiles(tmp_path):
+    graph = build_graph(FakeLLM(_DEFECT_DECK), out_dir=tmp_path)
+    cfg = {"configurable": {"thread_id": "c3"}}
+    graph.invoke(_init(), cfg)
+    final = graph.invoke(Command(resume={"approved": True}), cfg)
+    out = final.get("output_path") if isinstance(final, dict) else getattr(final, "output_path", None)
+    assert out and Path(out).exists()  # best-effort deck still compiles after human approval

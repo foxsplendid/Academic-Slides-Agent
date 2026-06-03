@@ -6,6 +6,8 @@ reach the compiler ("LLM locked to IR", docs/SPEC.md §3.1).
 
 from __future__ import annotations
 
+from typing import Optional
+
 from slide_ir import Deck, EvidenceAsset, TableBlock, from_llm_output
 
 from .llm import LLM
@@ -67,8 +69,22 @@ def _extract_json(text: str) -> str:
     return text
 
 
-def build_outline(assets: list[EvidenceAsset], tables: list[TableBlock], llm: LLM) -> Deck:
-    """Call the LLM and parse its output through the Slide-IR boundary (rejects non-IR)."""
+def build_outline(
+    assets: list[EvidenceAsset],
+    tables: list[TableBlock],
+    llm: LLM,
+    *,
+    feedback: Optional[list[str]] = None,
+) -> Deck:
+    """Call the LLM and parse its output through the Slide-IR boundary (rejects non-IR).
+
+    ``feedback`` carries the critic's findings from a prior pass so the planner fixes them on retry.
+    """
     prompt = build_outline_prompt(assets, tables)
+    if feedback:
+        issues = "\n".join(f"- {f}" for f in feedback)
+        prompt += (
+            "\n\nA previous draft had these problems — fix ALL of them in this revision:\n" + issues
+        )
     raw = llm.complete(prompt, system=SYSTEM_PROMPT)
     return from_llm_output(_extract_json(raw))  # extract JSON object, then the strict IR boundary
