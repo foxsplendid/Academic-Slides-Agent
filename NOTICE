@@ -26,3 +26,5 @@ Key runtime dependencies (all permissive — no copyleft):
   - pydantic      (MIT)  — Slide-IR validation
   - python-pptx   (MIT)  — native .pptx rendering
   - matplotlib    (BSD)  — LaTeX formula rendering (mathtext)
+  - openpyxl      (MIT)  — Excel (.xlsx) ingestion
+  - pdfplumber    (MIT)  — PDF text/table ingestion (pdfminer.six; NOT PyMuPDF)
