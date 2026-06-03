@@ -8,11 +8,13 @@ provider in production). Streaming is Server-Sent Events; the Hard-Stop is surfa
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from langgraph.types import Command
 from pydantic import BaseModel
@@ -57,6 +59,20 @@ def _progress(update: dict) -> dict:
 
 def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports") -> FastAPI:
     app = FastAPI(title="Academic-Slides-Agent API")
+    _origins = [
+        o.strip()
+        for o in os.environ.get(
+            "ASA_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+        ).split(",")
+        if o.strip()
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     graph = build_graph(llm, formula_renderer=formula_renderer, out_dir=out_dir)
     jobs: dict[str, dict] = {}
 
@@ -74,6 +90,25 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports") -
         )
         jobs[job_id] = state.model_dump()
         return {"job_id": job_id, "status": "created"}
+
+    @app.post("/jobs/upload")
+    async def create_job_upload(files: list[UploadFile] = File(default=[])):
+        job_id = uuid.uuid4().hex[:12]
+        job_dir = Path(out_dir) / "uploads" / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+        paths: list[str] = []
+        for upload in files:
+            dest = job_dir / (upload.filename or "upload.bin")
+            dest.write_bytes(await upload.read())
+            paths.append(str(dest))
+        result = ingest(*paths) if paths else None
+        state = GenerationState(
+            job_id=job_id,
+            evidence=(result.assets if result else []),
+            tables=(result.tables if result else []),
+        )
+        jobs[job_id] = state.model_dump()
+        return {"job_id": job_id, "status": "created", "ingested": len(paths)}
 
     @app.get("/jobs/{job_id}/stream")
     def stream(job_id: str):

@@ -79,3 +79,33 @@ def test_download_404_before_ready(tmp_path):
     client = _client(tmp_path)
     job_id = client.post("/jobs", json={"inputs": []}).json()["job_id"]
     assert client.get(f"/jobs/{job_id}/download").status_code == 404
+
+
+_CSV_BYTES = b"Sample,87Sr/86Sr\nHT-1,0.7041\n"
+
+
+def test_upload_creates_job(tmp_path):
+    client = _client(tmp_path)
+    r = client.post("/jobs/upload", files={"files": ("d.csv", _CSV_BYTES, "text/csv")})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["job_id"]
+    assert body["ingested"] == 1
+
+
+def test_cors_header_present(tmp_path):
+    client = _client(tmp_path)
+    r = client.post("/jobs", json={"inputs": []}, headers={"Origin": "http://localhost:5173"})
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+def test_upload_end_to_end(tmp_path):
+    client = _client(tmp_path)
+    job_id = client.post(
+        "/jobs/upload", files={"files": ("d.csv", _CSV_BYTES, "text/csv")}
+    ).json()["job_id"]
+    client.get(f"/jobs/{job_id}/stream")
+    client.post(f"/jobs/{job_id}/approve", json={"approved": True})
+    r = client.get(f"/jobs/{job_id}/download")
+    assert r.status_code == 200
+    assert r.content[:2] == b"PK"

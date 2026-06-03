@@ -32,6 +32,7 @@ Key runtime dependencies (all permissive — no copyleft):
   - fastapi       (MIT)  — HTTP API (SSE streaming + Hard-Stop resume)
   - uvicorn       (BSD)  — ASGI server (python -m asa_api)
   - python-dotenv (BSD)  — load local .env for provider keys
+  - python-multipart (Apache-2.0) — multipart file uploads (web UI)
 
 Optional provider SDKs (install only the one you use):
   - openai        (Apache-2.0) — OpenAI-compatible adapter (OpenAI/DeepSeek/aggregators/local)
