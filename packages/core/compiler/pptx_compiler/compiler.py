@@ -57,19 +57,18 @@ def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer) -> None:
 
     if s.layout_type in _CENTERED:
         box = slide.shapes.add_textbox(content_left, int(Inches(2.2)), content_width, int(Inches(2.0)))
+        box.text_frame.word_wrap = True
         para = box.text_frame.paragraphs[0]
-        para.text = s.title
-        para.font.size = Pt(40 if s.layout_type is LayoutType.TITLE else 32)
-        para.font.bold = True
         para.alignment = PP_ALIGN.CENTER
+        _blocks.add_rich_text(
+            para, s.title, size=Pt(40 if s.layout_type is LayoutType.TITLE else 32), bold=True
+        )
         content_top = int(Inches(4.4))
     else:
         box = slide.shapes.add_textbox(content_left, int(Inches(0.3)), content_width, int(Inches(1.0)))
         box.text_frame.word_wrap = True
         para = box.text_frame.paragraphs[0]
-        para.text = s.title
-        para.font.size = Pt(28)
-        para.font.bold = True
+        _blocks.add_rich_text(para, s.title, size=Pt(28), bold=True)
         content_top = int(Inches(1.5))
 
     if not s.blocks:
@@ -98,6 +97,9 @@ def compile_deck(
     inherits its theme, fonts, and slide size.
     """
     prs = Presentation(str(template)) if template else Presentation()
+    if template is None:  # default to 16:9 widescreen to match the reference 组会 deck
+        prs.slide_width = Inches(13.333)
+        prs.slide_height = Inches(7.5)
     renderer = formula_renderer or NullFormulaRenderer()
     layout = _blank_layout(prs)
 

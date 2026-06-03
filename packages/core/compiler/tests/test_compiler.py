@@ -141,3 +141,40 @@ def test_deterministic_structure(tmp_path):
         return [tuple(sh.shape_type for sh in slide.shapes) for slide in prs.slides]
 
     assert sig(a) == sig(b)
+
+
+# --- improve-output-quality: styling -----------------------------------------
+
+
+def test_fresh_deck_is_16_9(tmp_path):
+    deck = Deck(deck_id="d", slides=[SlideIR(slide_id="s1", layout_type=LayoutType.TITLE, title="T")])
+    prs = Presentation(str(compile_deck(deck, tmp_path / "w.pptx")))
+    assert round(prs.slide_width / prs.slide_height, 3) == 1.778  # 16:9
+
+
+def test_emphasis_span_becomes_red_bold_run(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s1",
+                layout_type=LayoutType.BULLET_EVIDENCE,
+                title="x",
+                blocks=[BulletBlock(items=["plain **key** tail"])],
+            )
+        ],
+    )
+    prs = Presentation(str(compile_deck(deck, tmp_path / "e.pptx")))
+    reds = [
+        r
+        for slide in prs.slides
+        for sh in slide.shapes
+        if sh.has_text_frame
+        for p in sh.text_frame.paragraphs
+        for r in p.runs
+        if r.font.bold
+        and r.font.color is not None
+        and r.font.color.type is not None
+        and str(r.font.color.rgb) == "FF0000"
+    ]
+    assert any(r.text == "key" for r in reds)

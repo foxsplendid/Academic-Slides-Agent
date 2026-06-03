@@ -1,13 +1,18 @@
 """Render individual Slide-IR blocks into native python-pptx shapes within a region.
 
-A region is an EMU tuple ``(left, top, width, height)``.
+A region is an EMU tuple ``(left, top, width, height)``. Text is rendered CJK-aware (East-Asian +
+Latin typefaces) and supports a ``**…**`` emphasis convention rendered as bold red runs, matching the
+reference 组会 deck style (docs/SPEC.md styling).
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
+from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
+from pptx.oxml.ns import qn
 from pptx.util import Pt
 
 from slide_ir import BulletBlock, FigureBlock, FormulaBlock, TableBlock
@@ -15,6 +20,47 @@ from slide_ir import BulletBlock, FigureBlock, FormulaBlock, TableBlock
 from .formula_renderer import FormulaRenderer
 
 Region = tuple[int, int, int, int]
+
+# Reference-deck styling: 黑体 for CJK, Times New Roman for Latin/numbers, red for emphasis.
+EA_FONT = "黑体"
+LATIN_FONT = "Times New Roman"
+_RED = RGBColor(0xFF, 0x00, 0x00)
+_EMPHASIS = re.compile(r"\*\*(.+?)\*\*")
+
+
+def _set_ea(font, typeface: str) -> None:
+    """Set the East-Asian typeface (`<a:ea>`); python-pptx's ``font.name`` only sets `<a:latin>`."""
+    rpr = font._rPr
+    ea = rpr.find(qn("a:ea"))
+    if ea is None:
+        ea = rpr.makeelement(qn("a:ea"), {})
+        rpr.append(ea)
+    ea.set("typeface", typeface)
+
+
+def add_rich_text(paragraph, text: str, *, size, bold: bool = False) -> None:
+    """Add runs to ``paragraph``, rendering ``**…**`` spans as bold red while the rest is default."""
+    segments: list[tuple[str, bool]] = []
+    pos = 0
+    for m in _EMPHASIS.finditer(text):
+        if m.start() > pos:
+            segments.append((text[pos:m.start()], False))
+        segments.append((m.group(1), True))
+        pos = m.end()
+    if pos < len(text):
+        segments.append((text[pos:], False))
+    if not segments:
+        segments = [(text, False)]
+    for content, emph in segments:
+        run = paragraph.add_run()
+        run.text = content
+        f = run.font
+        f.size = size
+        f.bold = bold or emph
+        f.name = LATIN_FONT
+        if emph:
+            f.color.rgb = _RED
+        _set_ea(f, EA_FONT)
 
 
 def render_bullets(slide, block: BulletBlock, region: Region):
@@ -24,8 +70,7 @@ def render_bullets(slide, block: BulletBlock, region: Region):
     tf.word_wrap = True
     for i, item in enumerate(block.items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.text = f"• {item}"
-        p.font.size = Pt(18)
+        add_rich_text(p, f"• {item}", size=Pt(16))
     return box
 
 
@@ -38,17 +83,15 @@ def render_table(slide, block: TableBlock, region: Region):
 
     for c, name in enumerate(block.columns):
         cell = table.cell(0, c)
-        cell.text = str(name)
-        for para in cell.text_frame.paragraphs:
-            para.font.bold = True
-            para.font.size = Pt(14)
+        cell.text = ""
+        add_rich_text(cell.text_frame.paragraphs[0], str(name), size=Pt(14), bold=True)
 
     for r, row in enumerate(block.rows, start=1):
         for c in range(n_cols):
             cell = table.cell(r, c)
-            cell.text = str(row[c]) if c < len(row) else ""
-            for para in cell.text_frame.paragraphs:
-                para.font.size = Pt(12)
+            cell.text = ""
+            value = str(row[c]) if c < len(row) else ""
+            add_rich_text(cell.text_frame.paragraphs[0], value, size=Pt(12))
 
     return graphic_frame
 
@@ -80,12 +123,12 @@ def render_figure(slide, block: FigureBlock, region: Region):
     if candidate.is_file():
         return slide.shapes.add_picture(str(candidate), left, top, width=width)
 
-    # Placeholder when the asset is not resolvable yet (Evidence Pool is a later change).
+    # Placeholder when the asset is not resolvable yet (figure extraction is a later change).
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
     tf.word_wrap = True
     text = f"[figure: {block.asset_id}]"
     if block.caption:
         text += f"\n{block.caption}"
-    tf.paragraphs[0].text = text
+    add_rich_text(tf.paragraphs[0], text, size=Pt(14))
     return box

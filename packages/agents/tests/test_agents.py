@@ -70,7 +70,7 @@ def test_prompt_carries_evidence_and_system():
     build_outline(assets, tables, llm)
     call = llm.calls[0]
     assert "isotopes" in call["prompt"].lower() or "87Sr" in call["prompt"]
-    assert call["system"] and "academic" in call["system"].lower()
+    assert call["system"] and "组会" in call["system"]
 
 
 def test_plan_outline_pauses_at_hard_stop():
@@ -105,3 +105,15 @@ def test_build_outline_accepts_fenced_json():
     deck = build_outline(assets, tables, FakeLLM(fenced))
     assert deck.deck_id == "d1"
     assert len(deck.slides) == 2
+
+
+def test_prompt_lists_available_figure_ids():
+    from asa_agents.outline import build_outline_prompt
+
+    assets, tables = _evidence()  # no figure assets
+    assert "(无" in build_outline_prompt(assets, tables)  # tells the model: no figures
+
+    with_fig = assets + [
+        EvidenceAsset(asset_id="fig1", kind="figure", content_ref="f.png", source="paper.pdf")
+    ]
+    assert "fig1" in build_outline_prompt(with_fig, tables)

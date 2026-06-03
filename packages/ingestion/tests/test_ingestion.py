@@ -109,3 +109,20 @@ def test_pdf_text_extraction(tmp_path):
     res = ingest_path(pdf)
     texts = [a.content_ref for a in res.assets if a.kind == "section_text"]
     assert any("HelloIngestion" in t for t in texts)
+
+
+# --- improve-output-quality: junk-table filtering ----------------------------
+
+
+def test_low_quality_table_is_filtered():
+    from ingestion.models import is_low_quality_table
+    from slide_ir import TableBlock
+
+    # majority auto-named headers (pdfplumber noise) -> dropped
+    assert is_low_quality_table(TableBlock(columns=["col1", "Se-", "col3"], rows=[["a", "b", "c"]]))
+    assert is_low_quality_table(TableBlock(columns=["A", "B"], rows=[]))  # no data rows
+    assert is_low_quality_table(TableBlock(columns=["A"], rows=[["x"]]))  # < 2 columns
+    # a clean table is kept
+    assert not is_low_quality_table(
+        TableBlock(columns=["Sample", "87Sr/86Sr"], rows=[["HT-1", "0.7041"]])
+    )

@@ -137,7 +137,7 @@ def test_self_correction_reaches_approval_clean(tmp_path):
     assert snap.values["retry_count"] == 1  # exactly one re-plan
     assert len(llm.calls) == 2
     # the retry prompt carried the feedback
-    assert "fix ALL of them" in llm.calls[1]["prompt"]
+    assert "必须全部修复" in llm.calls[1]["prompt"]
 
 
 def test_budget_exhaustion_still_reaches_human(tmp_path):

@@ -53,6 +53,15 @@ def rows_to_table(raw, caption: str, *, needs_human_check: bool = False) -> Opti
     return TableBlock(columns=columns, rows=data, caption=caption, needs_human_check=needs_human_check)
 
 
+def is_low_quality_table(table: TableBlock) -> bool:
+    """Best-effort PDF table extraction is noisy. Drop tables with no usable structure:
+    no data rows, fewer than two columns, or a majority of auto-generated ``colN`` headers."""
+    if len(table.columns) < 2 or len(table.rows) < 1:
+        return True
+    auto = sum(1 for c in table.columns if c.startswith("col") and c[3:].isdigit())
+    return auto * 2 >= len(table.columns)
+
+
 def add_table(result: IngestResult, table: TableBlock, *, asset_id: str, source: str, locator: dict) -> None:
     """Append a table and a correlated table-kind EvidenceAsset (with provenance)."""
     index = len(result.tables)
