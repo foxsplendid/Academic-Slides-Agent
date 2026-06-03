@@ -6,15 +6,29 @@ import os
 
 from .anthropic_llm import AnthropicLLM
 from .openai_compat import OpenAICompatibleLLM
+from .profiles import known_openai_profiles, openai_for_profile, resolve_openai_profile
 
-__all__ = ["OpenAICompatibleLLM", "AnthropicLLM", "provider_from_env"]
+__all__ = [
+    "OpenAICompatibleLLM",
+    "AnthropicLLM",
+    "provider_from_env",
+    "resolve_openai_profile",
+    "known_openai_profiles",
+]
 
 
 def provider_from_env():
-    """Construct an adapter selected by ``ASA_LLM_PROVIDER`` (default ``openai``)."""
+    """Construct an adapter selected by ``ASA_LLM_PROVIDER`` (default ``openai``).
+
+    Accepts a named OpenAI-compatible profile (openai/deepseek/mimo) or ``anthropic``.
+    """
     name = os.environ.get("ASA_LLM_PROVIDER", "openai").strip().lower()
-    if name in ("openai", "openai-compatible", "openai_compatible"):
-        return OpenAICompatibleLLM()
     if name == "anthropic":
         return AnthropicLLM()
-    raise ValueError(f"unknown ASA_LLM_PROVIDER: {name!r} (use 'openai' or 'anthropic')")
+    if name in ("openai-compatible", "openai_compatible"):
+        name = "openai"
+    if name in known_openai_profiles():
+        return openai_for_profile(name)
+    raise ValueError(
+        f"unknown ASA_LLM_PROVIDER: {name!r} (use one of {known_openai_profiles()} or 'anthropic')"
+    )

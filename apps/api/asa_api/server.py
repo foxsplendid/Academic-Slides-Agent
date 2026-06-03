@@ -13,6 +13,18 @@ from typing import Optional
 from .app import create_app
 
 
+def load_env(path: Optional[str | Path] = None) -> None:
+    """Best-effort load of a local ``.env`` (no-op if python-dotenv or the file is absent)."""
+    try:
+        from dotenv import load_dotenv
+    except Exception:
+        return
+    try:
+        load_dotenv(path) if path is not None else load_dotenv()
+    except Exception:
+        pass
+
+
 def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str | Path] = None):
     if llm is None:
         from asa_providers import provider_from_env  # lazy: needs a provider SDK only at runtime

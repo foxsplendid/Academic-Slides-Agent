@@ -12,8 +12,9 @@ import os
 def main() -> None:
     import uvicorn
 
-    from .server import build_default_app
+    from .server import build_default_app, load_env
 
+    load_env()  # pick up provider keys from a local .env
     app = build_default_app()
     uvicorn.run(
         app,

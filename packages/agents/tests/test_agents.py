@@ -97,3 +97,11 @@ def test_fake_llm_records_and_scripts():
     assert llm.complete("y") == "b"
     assert llm.complete("z") == "b"  # repeats the last
     assert len(llm.calls) == 3
+
+
+def test_build_outline_accepts_fenced_json():
+    assets, tables = _evidence()
+    fenced = "Here is your deck:\n```json\n" + _VALID_DECK + "\n```\n"
+    deck = build_outline(assets, tables, FakeLLM(fenced))
+    assert deck.deck_id == "d1"
+    assert len(deck.slides) == 2

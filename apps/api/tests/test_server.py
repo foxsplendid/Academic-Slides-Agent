@@ -56,3 +56,9 @@ def test_main_is_callable():
     import asa_api.__main__ as entry
 
     assert callable(entry.main)
+
+
+def test_load_env_is_best_effort(tmp_path):
+    from asa_api.server import load_env
+
+    load_env(path=str(tmp_path / "nonexistent.env"))  # must not raise

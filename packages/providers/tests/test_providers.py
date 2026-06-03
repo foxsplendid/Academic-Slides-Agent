@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from asa_providers import AnthropicLLM, OpenAICompatibleLLM, provider_from_env
+from asa_providers import AnthropicLLM, OpenAICompatibleLLM, provider_from_env, resolve_openai_profile
 
 
 class _FakeOpenAIClient:
@@ -79,6 +79,22 @@ def test_provider_from_env_unknown_raises(monkeypatch):
     monkeypatch.setenv("ASA_LLM_PROVIDER", "nope")
     with pytest.raises(ValueError):
         provider_from_env()
+
+
+def test_resolve_deepseek_profile_with_env(monkeypatch):
+    monkeypatch.setenv("ASA_DEEPSEEK_API_KEY", "dk")
+    cfg = resolve_openai_profile("deepseek")
+    assert cfg["base_url"] == "https://api.deepseek.com"
+    assert cfg["api_key"] == "dk"
+    assert cfg["model"] == "deepseek-chat"
+
+
+def test_resolve_mimo_profile_env_overrides(monkeypatch):
+    monkeypatch.setenv("ASA_MIMO_API_KEY", "mk")
+    monkeypatch.setenv("ASA_MIMO_BASE_URL", "https://gateway.example/v1")
+    monkeypatch.setenv("ASA_MIMO_MODEL", "mimo-x")
+    cfg = resolve_openai_profile("mimo")
+    assert cfg == {"base_url": "https://gateway.example/v1", "api_key": "mk", "model": "mimo-x"}
 
 
 @pytest.mark.skipif(not os.environ.get("ASA_OPENAI_API_KEY"), reason="no ASA_OPENAI_API_KEY for live test")
