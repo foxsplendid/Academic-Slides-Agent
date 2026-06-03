@@ -1,0 +1,266 @@
+{
+  "$defs": {
+    "BulletBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "bullets",
+          "default": "bullets",
+          "title": "Type",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "BulletBlock",
+      "type": "object"
+    },
+    "FigureBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "figure",
+          "default": "figure",
+          "title": "Type",
+          "type": "string"
+        },
+        "asset_id": {
+          "minLength": 1,
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        }
+      },
+      "required": [
+        "asset_id"
+      ],
+      "title": "FigureBlock",
+      "type": "object"
+    },
+    "FormulaBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "formula",
+          "default": "formula",
+          "title": "Type",
+          "type": "string"
+        },
+        "latex": {
+          "minLength": 1,
+          "title": "Latex",
+          "type": "string"
+        },
+        "render_tier": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "omml",
+            "svg",
+            "png"
+          ],
+          "title": "Render Tier",
+          "type": "string"
+        },
+        "rendered_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Ref"
+        }
+      },
+      "required": [
+        "latex"
+      ],
+      "title": "FormulaBlock",
+      "type": "object"
+    },
+    "LayoutType": {
+      "description": "Closed vocabulary of slide layouts.\n\nExtend ONLY via an OpenSpec change that also updates docs/SPEC.md — never ad-hoc.",
+      "enum": [
+        "title",
+        "section",
+        "bullet_evidence",
+        "two_column_table",
+        "formula_banner",
+        "figure_caption"
+      ],
+      "title": "LayoutType",
+      "type": "string"
+    },
+    "SlideIR": {
+      "additionalProperties": false,
+      "properties": {
+        "slide_id": {
+          "minLength": 1,
+          "title": "Slide Id",
+          "type": "string"
+        },
+        "layout_type": {
+          "$ref": "#/$defs/LayoutType"
+        },
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "blocks": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "bullets": "#/$defs/BulletBlock",
+                "figure": "#/$defs/FigureBlock",
+                "formula": "#/$defs/FormulaBlock",
+                "table": "#/$defs/TableBlock"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/FormulaBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/BulletBlock"
+              },
+              {
+                "$ref": "#/$defs/FigureBlock"
+              }
+            ]
+          },
+          "title": "Blocks",
+          "type": "array"
+        },
+        "speaker_notes": {
+          "default": "",
+          "title": "Speaker Notes",
+          "type": "string"
+        },
+        "provenance": {
+          "additionalProperties": true,
+          "title": "Provenance",
+          "type": "object"
+        }
+      },
+      "required": [
+        "slide_id",
+        "layout_type"
+      ],
+      "title": "SlideIR",
+      "type": "object"
+    },
+    "TableBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "table",
+          "default": "table",
+          "title": "Type",
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        },
+        "highlight": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlight"
+        },
+        "needs_human_check": {
+          "default": true,
+          "title": "Needs Human Check",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "columns"
+      ],
+      "title": "TableBlock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "An ordered list of Slide-IR — the unit the compiler renders to .pptx.",
+  "properties": {
+    "deck_id": {
+      "minLength": 1,
+      "title": "Deck Id",
+      "type": "string"
+    },
+    "slides": {
+      "items": {
+        "$ref": "#/$defs/SlideIR"
+      },
+      "title": "Slides",
+      "type": "array"
+    }
+  },
+  "required": [
+    "deck_id"
+  ],
+  "title": "Deck",
+  "type": "object"
+}

@@ -1,0 +1,17 @@
+[project]
+name = "asa-slide-ir"
+version = "0.1.0"
+description = "Slide-IR: the validated data contract Academic-Slides-Agent's LLM emits and the compiler consumes."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = ["pydantic>=2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "jsonschema>=4"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["slide_ir"]
