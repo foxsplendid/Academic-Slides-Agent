@@ -29,3 +29,4 @@ Key runtime dependencies (all permissive — no copyleft):
   - openpyxl      (MIT)  — Excel (.xlsx) ingestion
   - pdfplumber    (MIT)  — PDF text/table ingestion (pdfminer.six; NOT PyMuPDF)
   - langgraph     (Apache-2.0) — agent orchestration (interrupt / checkpoint / streaming)
+  - fastapi       (MIT)  — HTTP API (SSE streaming + Hard-Stop resume)
