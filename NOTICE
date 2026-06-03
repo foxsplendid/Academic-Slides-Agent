@@ -30,6 +30,7 @@ Key runtime dependencies (all permissive — no copyleft):
   - pdfplumber    (MIT)  — PDF text/table ingestion (pdfminer.six; NOT PyMuPDF)
   - langgraph     (Apache-2.0) — agent orchestration (interrupt / checkpoint / streaming)
   - fastapi       (MIT)  — HTTP API (SSE streaming + Hard-Stop resume)
+  - uvicorn       (BSD)  — ASGI server (python -m asa_api)
 
 Optional provider SDKs (install only the one you use):
   - openai        (Apache-2.0) — OpenAI-compatible adapter (OpenAI/DeepSeek/aggregators/local)

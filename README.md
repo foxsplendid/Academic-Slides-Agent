@@ -23,6 +23,19 @@ Evidence Pool ─▶ Agents (LangGraph) ─▶ Slide-IR (JSON) ─▶ Compiler �
     attachments)    Critic loop          (Hard-Stop)          ▲ native tables/formulas
 ```
 
+## Run the server
+
+```bash
+pip install -e apps/api -e "packages/providers[openai]"   # or [anthropic]
+export ASA_OPENAI_API_KEY=sk-...                          # OpenAI / DeepSeek / aggregator
+# export ASA_OPENAI_BASE_URL=http://localhost:11434/v1   # or a local Ollama / vLLM (no key)
+# export ASA_LLM_PROVIDER=anthropic ASA_ANTHROPIC_API_KEY=...
+python -m asa_api                                         # serves on ASA_HOST:ASA_PORT (127.0.0.1:8000)
+```
+
+Drive it: `POST /jobs` (ingest inputs) → `GET /jobs/{id}/stream` (SSE) → review the outline →
+`POST /jobs/{id}/approve` → `GET /jobs/{id}/download`.
+
 ## License
 
 **Apache-2.0** (see [`LICENSE`](LICENSE), [`NOTICE`](NOTICE)). Clean-room design — no AGPL/GPL
