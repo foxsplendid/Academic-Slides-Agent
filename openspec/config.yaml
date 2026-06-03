@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  Project: Academic-Slides-Agent — turns hard-science papers (PDF/LaTeX + supplementary
+  data) into rigorous, NATIVE-EDITABLE .pptx for academic group meetings / conferences.
+  License: Apache-2.0 (clean-room; MUST avoid AGPL/GPL contamination).
+  Authoritative architecture doc: docs/SPEC.md (read it before proposing changes).
+
+  Locked invariants (do NOT violate without updating docs/SPEC.md + a Changelog entry):
+  - LLM output is LOCKED to Slide-IR (Pydantic-validated JSON). LLMs never emit SVG / code /
+    pptx. A deterministic, AI-free compiler renders IR -> native python-pptx objects.
+  - Orchestration: LangGraph (interrupt() = human Hard-Stop, checkpointer = resume/persist,
+    astream = streaming). IR + compiler stay framework-agnostic (no LangChain import in core).
+  - Frontend v1: export-first (no in-browser WYSIWYG editor). NO AGPL PPTist.
+  - Formula v1: LaTeX -> SVG vector image (server MathJax). Native-editable OMML is v2.
+  - Ingestion: prefer structured supplementary data (Excel/CSV/zip) via pandas/openpyxl;
+    PDF tables best-effort (pdfplumber). Normalize everything to an Evidence Pool w/ provenance.
+  - License hygiene: FORBIDDEN deps = PPTist (AGPL), PyMuPDF/fitz (AGPL), any AGPL/GPL code.
+    Use pypdfium2 / pdfplumber instead. MinerU only after reading its custom-license terms.
+  - Stack: Python 3.12 + FastAPI + LangGraph + python-pptx (backend); React (frontend).
+
+rules:
+  proposal:
+    - Always include an explicit "Non-goals" section.
+    - Note the license of every new dependency introduced (block AGPL/GPL).
