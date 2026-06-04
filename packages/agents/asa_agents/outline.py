@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from slide_ir import Deck, EvidenceAsset, TableBlock, from_llm_output
+from slide_ir import Deck, EvidenceAsset, IRBoundaryError, TableBlock, from_llm_output
 
 from .llm import LLM
 
@@ -105,14 +105,31 @@ def build_outline(
     llm: LLM,
     *,
     feedback: Optional[list[str]] = None,
+    max_attempts: int = 3,
 ) -> Deck:
     """Call the LLM and parse its output through the Slide-IR boundary (rejects non-IR).
 
     ``feedback`` carries the critic's findings from a prior pass so the planner fixes them on retry.
+    Transient malformed output (dropped char, wrong enum, stray fence) is retried up to
+    ``max_attempts`` times with the validation error fed back; the boundary itself stays strict.
     """
-    prompt = build_outline_prompt(assets, tables)
+    base = build_outline_prompt(assets, tables)
     if feedback:
         issues = "\n".join(f"- {f}" for f in feedback)
-        prompt += "\n\n上一稿存在以下问题,本次修订必须全部修复:\n" + issues
-    raw = llm.complete(prompt, system=SYSTEM_PROMPT)
-    return from_llm_output(_extract_json(raw))  # extract JSON object, then the strict IR boundary
+        base += "\n\n上一稿存在以下问题,本次修订必须全部修复:\n" + issues
+
+    prompt = base
+    last_err: Optional[IRBoundaryError] = None
+    for _ in range(max(1, max_attempts)):
+        raw = llm.complete(prompt, system=SYSTEM_PROMPT)
+        try:
+            return from_llm_output(_extract_json(raw))  # extract JSON object, then the strict boundary
+        except IRBoundaryError as err:
+            last_err = err
+            prompt = (
+                base
+                + "\n\n你上一次的输出不是合法 JSON 或不符合 schema,报错如下;"
+                + "请只返回修正后的完整 JSON 对象,不要任何解释:\n"
+                + str(err)[:500]
+            )
+    raise last_err  # type: ignore[misc]

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.4 |
+| **Version** | 0.1.5 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -349,3 +349,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-03 | 0.1.2 | Critic §6.5 v1 landed: **deterministic, AI-free `critique_deck`** measuring Slide-IR + a **bounded `plan↔critic` retry loop** (feedback to planner, `max_retries`) running before the Hard-Stop. VLM critic stays v2. |
 | 2026-06-04 | 0.1.3 | Quality tuning on a real paper (MiMo): planner now outputs a **Chinese 组会 talk** (method-paper narrative, concise titles, per-slide interpretation, **speaker notes**, terms kept original, figures grounded in the Evidence Pool — no hallucinated refs); compiler renders **16:9 + CJK fonts + `**…**` red-bold emphasis**; ingestion gains **two-column-aware PDF text** + **junk-table filtering** + wider digest. Figure *extraction* still deferred. |
 | 2026-06-04 | 0.1.4 | **Figure extraction (§6.1) landed**: caption-anchored region rendering via `pypdfium2` (BSD) → `figure` Evidence assets; compiler resolves figure `asset_id`→rendered PNG via `asset_resolver`; planner sees figure ids+captions. Verified on Zhang 2026 (Fig.1–3 rendered, embedded natively). Vector figures handled; panel-splitting/OCR out of scope. |
+| 2026-06-04 | 0.1.5 | **Resilient IR boundary**: `build_outline` retries transient malformed LLM output (dropped char / wrong enum / stray fence) up to `max_attempts` with the validation error fed back, re-raising only after the budget. The boundary stays strict; distinct from the critic loop (which re-plans a *valid* deck for quality). |

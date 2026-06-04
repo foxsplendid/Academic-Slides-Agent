@@ -117,3 +117,28 @@ def test_prompt_lists_available_figure_ids():
         EvidenceAsset(asset_id="fig1", kind="figure", content_ref="f.png", source="paper.pdf")
     ]
     assert "fig1" in build_outline_prompt(with_fig, tables)
+
+
+def test_ir_boundary_retry_recovers():
+    assets, tables = _evidence()
+    # first response is malformed, second is valid -> build_outline recovers
+    llm = FakeLLM("oops not json", _VALID_DECK)
+    deck = build_outline(assets, tables, llm)
+    assert deck.deck_id == "d1"
+    assert len(llm.calls) == 2  # retried once after the boundary error
+    assert "不符合 schema" in llm.calls[1]["prompt"]  # error fed back
+
+
+def test_ir_boundary_retry_exhausts_and_raises():
+    assets, tables = _evidence()
+    llm = FakeLLM("never valid ir")  # repeats; never parses
+    with pytest.raises(IRBoundaryError):
+        build_outline(assets, tables, llm, max_attempts=3)
+    assert len(llm.calls) == 3  # tried the full budget
+
+
+def test_valid_deck_parses_on_first_attempt():
+    assets, tables = _evidence()
+    llm = FakeLLM(_VALID_DECK)
+    build_outline(assets, tables, llm)
+    assert len(llm.calls) == 1  # no extra calls when the first response is valid
