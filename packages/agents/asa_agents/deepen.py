@@ -43,7 +43,11 @@ block 之一:
   {"type":"figure","asset_id":"<指定的图 id>","caption":"<一句图注>"}
   {"type":"table","columns":["..."],"rows":[["..."]]}
   {"type":"formula","latex":"..."}
+  {"type":"chart","chart_type":"bar|line|scatter|pie","categories":["..."],"series":[{"name":"...","values":[1,2,3]}],"title":"..."}
 要求:
+- **图表(chart)**:若本页证据里有一组可比较的数值(≥3 个类别/时间点/分组的指标,如各元素重要性、随时间的指标),\
+**优先输出 chart block 用原生图表(柱/线/散点)可视化**,而不是仅用文字罗列;`series.values` 与 `categories` 一一对应,\
+scatter 用每个 series 的 `x` 与 `values` 配对。**所有数字必须直接来自证据,严禁编造或估算**;证据里没有具体数值就不要出图表。
 - bullet 给 **4-6 条有实质**的要点(具体到方法、数值、机制、结论),末条以 "→ " 开头给"这说明了什么"的解读
 - speaker_notes:讲者照着念的口播稿
 - 术语/符号/方法名/引用保持原文(Random Forest、SHAP、O₂、r=0.938、Lyons et al., 2014 等)

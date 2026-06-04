@@ -6,6 +6,8 @@ The LLM emits ONLY Slide-IR; a deterministic compiler consumes it. See docs/SPEC
 from .models import (
     Block,
     BulletBlock,
+    ChartBlock,
+    ChartSeries,
     Deck,
     EvidenceAsset,
     EvidenceKind,
@@ -29,6 +31,8 @@ __all__ = [
     "TableBlock",
     "BulletBlock",
     "FigureBlock",
+    "ChartBlock",
+    "ChartSeries",
     "Block",
     "SlideIR",
     "Deck",

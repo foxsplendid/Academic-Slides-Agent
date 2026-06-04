@@ -115,3 +115,11 @@ each expanded slide with a done/total count.
 - **WHEN** the builder runs with a progress callback
 - **THEN** the callback is invoked with slide `done` and `total` values
 
+### Requirement: Charts only from evidence data
+The planner MAY emit a `ChartBlock` to visualize quantitative results, but its values SHALL come from
+data present in the evidence; the planner SHALL NOT fabricate chart numbers.
+
+#### Scenario: Prompt forbids fabricated chart data
+- **WHEN** the planner prompts are produced
+- **THEN** they instruct that chart values must come from the evidence and must not be invented
+

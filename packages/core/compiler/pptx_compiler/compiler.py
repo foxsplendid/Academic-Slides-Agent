@@ -15,6 +15,7 @@ from pptx.util import Inches, Pt
 
 from slide_ir import (
     BulletBlock,
+    ChartBlock,
     Deck,
     FigureBlock,
     FormulaBlock,
@@ -29,7 +30,7 @@ from .formula_renderer import FormulaRenderer, NullFormulaRenderer
 _MARGIN = Inches(0.5)
 _CENTERED = (LayoutType.TITLE, LayoutType.SECTION)
 # Figures dominate; tables/formulas need room; bullets are compact. Used for weighted region heights.
-_BLOCK_WEIGHT = {"figure": 3.2, "table": 2.0, "formula": 1.6, "bullets": 1.0}
+_BLOCK_WEIGHT = {"figure": 3.2, "chart": 3.0, "table": 2.0, "formula": 1.6, "bullets": 1.0}
 
 
 def _blank_layout(prs):
@@ -50,6 +51,8 @@ def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolve
         _blocks.render_formula(slide, block, region, renderer)
     elif isinstance(block, FigureBlock):
         _blocks.render_figure(slide, block, region, asset_resolver)
+    elif isinstance(block, ChartBlock):
+        _blocks.render_chart(slide, block, region)
 
 
 def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None) -> None:

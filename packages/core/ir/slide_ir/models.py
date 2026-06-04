@@ -64,8 +64,24 @@ class FigureBlock(_BlockBase):
     caption: Optional[str] = None
 
 
+class ChartSeries(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = ""
+    values: list[float] = Field(min_length=1)  # y-values (category charts) or y (scatter)
+    x: Optional[list[float]] = None  # scatter only: x-values paired with `values`
+
+
+class ChartBlock(_BlockBase):
+    type: Literal["chart"] = "chart"
+    chart_type: Literal["bar", "line", "scatter", "pie"] = "bar"
+    categories: list[str] = Field(default_factory=list)  # x-axis labels for bar/line/pie
+    series: list[ChartSeries] = Field(min_length=1)
+    title: Optional[str] = None
+
+
 Block = Annotated[
-    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock],
+    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock, ChartBlock],
     Field(discriminator="type"),
 ]
 

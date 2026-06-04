@@ -24,6 +24,98 @@
       "title": "BulletBlock",
       "type": "object"
     },
+    "ChartBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "chart",
+          "default": "chart",
+          "title": "Type",
+          "type": "string"
+        },
+        "chart_type": {
+          "default": "bar",
+          "enum": [
+            "bar",
+            "line",
+            "scatter",
+            "pie"
+          ],
+          "title": "Chart Type",
+          "type": "string"
+        },
+        "categories": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/ChartSeries"
+          },
+          "minItems": 1,
+          "title": "Series",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "series"
+      ],
+      "title": "ChartBlock",
+      "type": "object"
+    },
+    "ChartSeries": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        },
+        "x": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "X"
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "title": "ChartSeries",
+      "type": "object"
+    },
     "FigureBlock": {
       "additionalProperties": false,
       "properties": {
@@ -135,6 +227,7 @@
             "discriminator": {
               "mapping": {
                 "bullets": "#/$defs/BulletBlock",
+                "chart": "#/$defs/ChartBlock",
                 "figure": "#/$defs/FigureBlock",
                 "formula": "#/$defs/FormulaBlock",
                 "table": "#/$defs/TableBlock"
@@ -153,6 +246,9 @@
               },
               {
                 "$ref": "#/$defs/FigureBlock"
+              },
+              {
+                "$ref": "#/$defs/ChartBlock"
               }
             ]
           },

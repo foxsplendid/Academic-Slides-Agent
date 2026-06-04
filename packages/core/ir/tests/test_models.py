@@ -168,3 +168,64 @@ def test_generation_state_defaults():
     st = GenerationState(job_id="j1")
     assert st.phase.value == "ingesting"
     assert st.max_retries == 2
+
+
+# --- add-data-charts ---------------------------------------------------------
+
+
+def test_chart_block_valid():
+    deck = from_llm_output(
+        {
+            "deck_id": "d",
+            "slides": [
+                {
+                    "slide_id": "s1",
+                    "layout_type": "bullet_evidence",
+                    "title": "data",
+                    "blocks": [
+                        {
+                            "type": "chart",
+                            "chart_type": "bar",
+                            "categories": ["GOE", "NOE"],
+                            "series": [{"name": "O2", "values": [1.0, 2.0]}],
+                            "title": "O2",
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    block = deck.slides[0].blocks[0]
+    assert block.type == "chart" and block.chart_type == "bar"
+    assert block.series[0].values == [1.0, 2.0]
+
+
+def test_chart_block_invalid_rejected():
+    with pytest.raises(IRBoundaryError):  # unknown chart_type
+        from_llm_output(
+            {
+                "deck_id": "d",
+                "slides": [
+                    {
+                        "slide_id": "s1",
+                        "layout_type": "bullet_evidence",
+                        "title": "x",
+                        "blocks": [{"type": "chart", "chart_type": "donut", "series": [{"values": [1]}]}],
+                    }
+                ],
+            }
+        )
+    with pytest.raises(IRBoundaryError):  # empty series
+        from_llm_output(
+            {
+                "deck_id": "d",
+                "slides": [
+                    {
+                        "slide_id": "s1",
+                        "layout_type": "bullet_evidence",
+                        "title": "x",
+                        "blocks": [{"type": "chart", "chart_type": "bar", "series": []}],
+                    }
+                ],
+            }
+        )

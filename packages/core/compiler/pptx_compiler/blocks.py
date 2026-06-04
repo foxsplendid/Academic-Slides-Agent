@@ -10,12 +10,14 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from pptx.chart.data import CategoryChartData, XyChartData
 from pptx.dml.color import RGBColor
+from pptx.enum.chart import XL_CHART_TYPE
 from pptx.enum.text import PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Pt
 
-from slide_ir import BulletBlock, FigureBlock, FormulaBlock, TableBlock
+from slide_ir import BulletBlock, ChartBlock, FigureBlock, FormulaBlock, TableBlock
 
 from .formula_renderer import FormulaRenderer
 
@@ -94,6 +96,42 @@ def render_table(slide, block: TableBlock, region: Region):
             add_rich_text(cell.text_frame.paragraphs[0], value, size=Pt(12))
 
     return graphic_frame
+
+
+_CATEGORY_CHARTS = {
+    "bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
+    "line": XL_CHART_TYPE.LINE_MARKERS,
+    "pie": XL_CHART_TYPE.PIE,
+}
+
+
+def render_chart(slide, block: ChartBlock, region: Region):
+    """Render a native, editable PowerPoint chart (not an image)."""
+    left, top, width, height = region
+    if block.chart_type == "scatter":
+        data = XyChartData()
+        for s in block.series:
+            series = data.add_series(s.name or "series")
+            xs = s.x or list(range(1, len(s.values) + 1))
+            for x, y in zip(xs, s.values):
+                series.add_data_point(float(x), float(y))
+        frame = slide.shapes.add_chart(XL_CHART_TYPE.XY_SCATTER, left, top, width, height, data)
+    else:
+        n = len(block.categories) if block.categories else max(len(s.values) for s in block.series)
+        cats = block.categories or [str(i + 1) for i in range(n)]
+        data = CategoryChartData()
+        data.categories = cats
+        for s in block.series:
+            vals = (list(s.values)[:n] + [0.0] * n)[:n]  # pad/truncate to the category count
+            data.add_series(s.name or "series", vals)
+        ctype = _CATEGORY_CHARTS.get(block.chart_type, XL_CHART_TYPE.COLUMN_CLUSTERED)
+        frame = slide.shapes.add_chart(ctype, left, top, width, height, data)
+    chart = frame.chart
+    if block.title:
+        chart.has_title = True
+        chart.chart_title.text_frame.text = block.title
+    chart.has_legend = len(block.series) > 1 or block.chart_type == "pie"
+    return frame
 
 
 def render_formula(slide, block: FormulaBlock, region: Region, renderer: FormulaRenderer):

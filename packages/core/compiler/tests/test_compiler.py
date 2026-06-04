@@ -14,6 +14,8 @@ from pptx.util import Inches
 
 from slide_ir import (
     BulletBlock,
+    ChartBlock,
+    ChartSeries,
     Deck,
     FigureBlock,
     FormulaBlock,
@@ -257,6 +259,32 @@ def test_figure_gets_more_room_than_bullets(tmp_path):
     bullets = next(sh for sh in shapes if sh.has_text_frame and "a" in sh.text_frame.text)
     # the figure region (square image fit) is taller than the bullets textbox
     assert pic.height > bullets.height
+
+
+def test_chart_block_renders_native_chart(tmp_path):
+    for ctype in ("bar", "line", "pie", "scatter"):
+        deck = Deck(
+            deck_id="d",
+            slides=[
+                SlideIR(
+                    slide_id="s",
+                    layout_type=LayoutType.BULLET_EVIDENCE,
+                    title="data",
+                    blocks=[
+                        ChartBlock(
+                            chart_type=ctype,
+                            categories=["A", "B", "C"],
+                            series=[ChartSeries(name="x", values=[1.0, 2.0, 3.0])],
+                            title="t",
+                        )
+                    ],
+                )
+            ],
+        )
+        out = compile_deck(deck, tmp_path / f"chart_{ctype}.pptx")
+        slide = Presentation(str(out)).slides[0]
+        charts = [sh for sh in slide.shapes if sh.has_chart]
+        assert charts, f"{ctype} did not render a native chart"
 
 
 def test_unresolved_figure_falls_back_to_placeholder(tmp_path):
