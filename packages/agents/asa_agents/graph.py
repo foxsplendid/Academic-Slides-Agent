@@ -30,15 +30,20 @@ def build_graph(
     formula_renderer=None,
     out_dir: str | Path = "exports",
     checkpointer=None,
+    planner=build_outline,
 ):
-    """Build and compile the orchestration graph. Inject `llm`/`formula_renderer` via closure."""
+    """Build and compile the orchestration graph. Inject `llm`/`formula_renderer` via closure.
+
+    `planner(assets, tables, llm, *, feedback=None) -> Deck` defaults to the single-shot
+    `build_outline`; pass `build_deck_detailed` for the two-stage detailed builder.
+    """
     out_dir_path = Path(out_dir)
 
     def plan(state: GenerationState) -> dict:
         # On a retry the prior critic findings are fed back so the LLM fixes them; the counter
         # advances exactly when feedback is consumed, so it tracks re-plans (not the initial plan).
         feedback = state.critic_findings or None
-        deck = build_outline(state.evidence, state.tables, llm, feedback=feedback)  # LLM -> IR boundary
+        deck = planner(state.evidence, state.tables, llm, feedback=feedback)  # LLM -> IR boundary
         outline = [
             {"slide_id": s.slide_id, "layout_type": s.layout_type.value, "title": s.title}
             for s in deck.slides

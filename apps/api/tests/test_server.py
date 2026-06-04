@@ -15,29 +15,28 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from asa_agents import FakeLLM
 from asa_api.server import build_default_app
 
-_DECK = json.dumps(
+# build_default_app uses the two-stage detailed planner, so script: skeleton + one slide per plan.
+_SKELETON = json.dumps(
     {
-        "deck_id": "d",
         "slides": [
-            {"slide_id": "s1", "layout_type": "title", "title": "Demo", "blocks": []},
-            {
-                "slide_id": "s2",
-                "layout_type": "formula_banner",
-                "title": "Energy",
-                "blocks": [{"type": "formula", "latex": "E=mc^2"}],
-            },
-        ],
+            {"slide_id": "s1", "layout_type": "title", "title": "Demo", "focus": "intro", "evidence_pages": [], "figure_id": None},
+            {"slide_id": "s2", "layout_type": "formula_banner", "title": "Energy", "focus": "formula", "evidence_pages": [], "figure_id": None},
+        ]
     }
+)
+_S1 = json.dumps({"slide_id": "s1", "layout_type": "title", "title": "Demo", "blocks": [], "speaker_notes": "x", "provenance": {"source": "p"}})
+_S2 = json.dumps(
+    {"slide_id": "s2", "layout_type": "formula_banner", "title": "Energy", "blocks": [{"type": "formula", "latex": "E=mc^2"}], "speaker_notes": "x", "provenance": {"source": "p"}}
 )
 
 
 def test_build_default_app_with_injected_llm(tmp_path):
-    app = build_default_app(llm=FakeLLM(_DECK), out_dir=tmp_path)  # no provider SDK needed
+    app = build_default_app(llm=FakeLLM(_SKELETON), out_dir=tmp_path)  # no provider SDK needed
     assert app is not None
 
 
 def test_end_to_end_produces_formula_picture(tmp_path):
-    client = TestClient(build_default_app(llm=FakeLLM(_DECK), out_dir=tmp_path))
+    client = TestClient(build_default_app(llm=FakeLLM(_SKELETON, _S1, _S2), out_dir=tmp_path))
     job_id = client.post("/jobs", json={"inputs": []}).json()["job_id"]
     client.get(f"/jobs/{job_id}/stream")  # plan -> pause
     client.post(f"/jobs/{job_id}/approve", json={"approved": True})  # resume -> compile

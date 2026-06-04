@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.6 |
+| **Version** | 0.1.7 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -356,3 +356,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-04 | 0.1.4 | **Figure extraction (§6.1) landed**: caption-anchored region rendering via `pypdfium2` (BSD) → `figure` Evidence assets; compiler resolves figure `asset_id`→rendered PNG via `asset_resolver`; planner sees figure ids+captions. Verified on Zhang 2026 (Fig.1–3 rendered, embedded natively). Vector figures handled; panel-splitting/OCR out of scope. |
 | 2026-06-04 | 0.1.5 | **Resilient IR boundary**: `build_outline` retries transient malformed LLM output (dropped char / wrong enum / stray fence) up to `max_attempts` with the validation error fed back, re-raising only after the budget. The boundary stays strict; distinct from the critic loop (which re-plans a *valid* deck for quality). |
 | 2026-06-04 | 0.1.6 | **MinerU cloud-API PDF backend** (§6.1): high-fidelity parsing (clean reading-order text, LaTeX formulas, HTML tables, precise `chart` figure crops + captions) via `mineru.net/api/v4`, an arms-length service (license-clean). Selected by `MINERU_API_KEY`/`ASA_PDF_PARSER`, pdfplumber fallback. Verified on Zhang 2026: 55k clean chars + 4 figures vs pdfplumber's jumbled text + 3 heuristic crops. |
+| 2026-06-04 | 0.1.7 | **Two-stage detailed deck** (PPTAgent-style, `asa_agents/deepen.py`): skeleton plan → per-slide focused expansion (each slide sees its own evidence at full resolution) → deeper content (~5.4 substantive bullets/slide + real speaker notes vs ~3 generic). Graph planner is now injectable (`build_graph(planner=…)`, default single-shot `build_outline`); the server wires `build_deck_detailed`. Verified on Zhang 2026 (MinerU evidence). |

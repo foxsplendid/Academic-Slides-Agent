@@ -142,3 +142,61 @@ def test_valid_deck_parses_on_first_attempt():
     llm = FakeLLM(_VALID_DECK)
     build_outline(assets, tables, llm)
     assert len(llm.calls) == 1  # no extra calls when the first response is valid
+
+
+# --- add-detailed-slide-content: two-stage builder ---------------------------
+
+_SKELETON = json.dumps(
+    {
+        "slides": [
+            {"slide_id": "s1", "layout_type": "title", "title": "Sr-Nd 同位素", "focus": "一句话", "evidence_pages": [], "figure_id": None},
+            {"slide_id": "s2", "layout_type": "bullet_evidence", "title": "结果", "focus": "讲清结果", "evidence_pages": [1], "figure_id": None},
+        ]
+    }
+)
+_SLIDE1 = json.dumps(
+    {"slide_id": "s1", "layout_type": "title", "title": "Sr-Nd 同位素", "blocks": [], "speaker_notes": "开场", "provenance": {"source": "p1"}}
+)
+_SLIDE2 = json.dumps(
+    {
+        "slide_id": "s2",
+        "layout_type": "bullet_evidence",
+        "title": "结果",
+        "blocks": [{"type": "bullets", "items": ["细节A具体方法", "数值 0.7041", "机制解释", "→ 这说明了什么"]}],
+        "speaker_notes": "这一页讲结果细节,照着念。",
+        "provenance": {"source": "p1"},
+    }
+)
+
+
+def test_two_stage_builder_deepens_content():
+    from asa_agents import build_deck_detailed
+
+    assets, tables = _evidence()
+    # 1 skeleton call + 1 call per slide (2 slides)
+    llm = FakeLLM(_SKELETON, _SLIDE1, _SLIDE2)
+    deck = build_deck_detailed(assets, tables, llm)
+    assert len(deck.slides) == 2
+    assert len(llm.calls) == 3  # skeleton + 2 expansions
+    s2 = deck.slides[1]
+    assert s2.blocks and s2.blocks[0].type == "bullets"
+    assert len(s2.blocks[0].items) >= 4  # deeper than single-shot
+    assert s2.speaker_notes  # notes generated
+
+
+def test_two_stage_keeps_assigned_figure():
+    from asa_agents import build_deck_detailed
+
+    assets = [
+        EvidenceAsset(asset_id="p1", kind="section_text", content_ref="text", source="paper.pdf", locator={"page": 1}),
+        EvidenceAsset(asset_id="fig1", kind="figure", content_ref="f.png", source="paper.pdf", locator={"page": 1, "caption": "Fig.1"}),
+    ]
+    skeleton = json.dumps(
+        {"slides": [{"slide_id": "s1", "layout_type": "figure_caption", "title": "图", "focus": "看图", "evidence_pages": [1], "figure_id": "fig1"}]}
+    )
+    slide = json.dumps(
+        {"slide_id": "s1", "layout_type": "figure_caption", "title": "图", "blocks": [{"type": "figure", "asset_id": "fig1", "caption": "Fig.1"}], "speaker_notes": "看图", "provenance": {"source": "p1"}}
+    )
+    deck = build_deck_detailed(assets, [], FakeLLM(skeleton, slide))
+    figs = [b for s in deck.slides for b in s.blocks if b.type == "figure"]
+    assert figs and figs[0].asset_id == "fig1"

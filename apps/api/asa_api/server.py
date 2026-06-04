@@ -35,4 +35,8 @@ def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str 
 
         formula_renderer = MatplotlibFormulaRenderer()
     resolved_out = out_dir or os.environ.get("ASA_OUT_DIR", "exports")
-    return create_app(llm, formula_renderer=formula_renderer, out_dir=resolved_out)
+    from asa_agents import build_deck_detailed  # two-stage detailed planner for production runs
+
+    return create_app(
+        llm, formula_renderer=formula_renderer, out_dir=resolved_out, planner=build_deck_detailed
+    )
