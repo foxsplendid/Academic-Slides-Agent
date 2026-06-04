@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,31 @@ from .spreadsheet import ingest_csv, ingest_xlsx
 _IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
+def _ingest_pdf(path: Path, workspace: Optional[str | Path]) -> IngestResult:
+    """Use the MinerU cloud backend when configured + a workspace is available; else pdfplumber.
+
+    `ASA_PDF_PARSER` = auto (default) | mineru | pdfplumber. MinerU failures fall back gracefully.
+    """
+    parser = os.environ.get("ASA_PDF_PARSER", "auto").lower()
+    api_key = os.environ.get("MINERU_API_KEY")
+    use_mineru = parser == "mineru" or (parser == "auto" and api_key and workspace is not None)
+    if use_mineru and api_key and workspace is not None:
+        from .mineru import ingest_pdf_mineru
+
+        try:
+            return ingest_pdf_mineru(
+                path,
+                api_key=api_key,
+                workspace=workspace,
+                api_url=os.environ.get("MINERU_API_URL", "https://mineru.net/api/v4"),
+            )
+        except Exception:
+            if parser == "mineru":
+                raise  # explicit request: surface the error
+            # auto mode: degrade to the offline backend
+    return ingest_pdf(path, workspace=workspace)
+
+
 def ingest_path(path: str | Path, *, workspace: Optional[str | Path] = None) -> IngestResult:
     path = Path(path)
     ext = path.suffix.lower()
@@ -22,7 +48,7 @@ def ingest_path(path: str | Path, *, workspace: Optional[str | Path] = None) -> 
     if ext == ".csv":
         return ingest_csv(path)
     if ext == ".pdf":
-        return ingest_pdf(path, workspace=workspace)
+        return _ingest_pdf(path, workspace)
     if ext == ".zip":
         from .archive import ingest_zip
 

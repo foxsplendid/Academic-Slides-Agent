@@ -2,6 +2,7 @@
 
 from .archive import ingest_zip
 from .figures import extract_figures
+from .mineru import ingest_pdf_mineru, parse_mineru_content_list
 from .models import IngestResult
 from .pdf import ingest_pdf
 from .router import ingest, ingest_path
@@ -16,4 +17,6 @@ __all__ = [
     "ingest_pdf",
     "ingest_zip",
     "extract_figures",
+    "ingest_pdf_mineru",
+    "parse_mineru_content_list",
 ]

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.5 |
+| **Version** | 0.1.6 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -253,7 +253,12 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
 - **PDF tables (best-effort only):** `pdfplumber` (MIT) for ruled tables; low-quality tables
   (no data rows / <2 cols / mostly auto-named headers) are dropped. Two-column pages are
   extracted column-by-column (gutter crop) to preserve reading order.
-- **PDF figures (implemented):** hard-science figures are usually *vector*, so we **render**
+- **High-fidelity backend (implemented): MinerU cloud API.** When `MINERU_API_KEY` is set (+ a
+  workspace), PDFs are parsed via `mineru.net/api/v4` (`ingestion/mineru.py`) — clean reading-order
+  text, LaTeX formulas, HTML tables, and precise figure crops (type `chart`) with captions. Called as
+  an **arms-length HTTP service** (no linking → license-clean for our Apache code). `ASA_PDF_PARSER`
+  = `auto|mineru|pdfplumber`; failures degrade to pdfplumber.
+- **PDF figures (pdfplumber fallback):** hard-science figures are usually *vector*, so we **render**
   caption-anchored regions (`Fig. N` band) with `pypdfium2` → PNG → `figure` Evidence assets
   (`ingestion/figures.py`). The compiler resolves a figure block's `asset_id` to the rendered PNG
   via an `asset_resolver`. Best-effort regions; panel-splitting is out of scope.
@@ -350,3 +355,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-04 | 0.1.3 | Quality tuning on a real paper (MiMo): planner now outputs a **Chinese 组会 talk** (method-paper narrative, concise titles, per-slide interpretation, **speaker notes**, terms kept original, figures grounded in the Evidence Pool — no hallucinated refs); compiler renders **16:9 + CJK fonts + `**…**` red-bold emphasis**; ingestion gains **two-column-aware PDF text** + **junk-table filtering** + wider digest. Figure *extraction* still deferred. |
 | 2026-06-04 | 0.1.4 | **Figure extraction (§6.1) landed**: caption-anchored region rendering via `pypdfium2` (BSD) → `figure` Evidence assets; compiler resolves figure `asset_id`→rendered PNG via `asset_resolver`; planner sees figure ids+captions. Verified on Zhang 2026 (Fig.1–3 rendered, embedded natively). Vector figures handled; panel-splitting/OCR out of scope. |
 | 2026-06-04 | 0.1.5 | **Resilient IR boundary**: `build_outline` retries transient malformed LLM output (dropped char / wrong enum / stray fence) up to `max_attempts` with the validation error fed back, re-raising only after the budget. The boundary stays strict; distinct from the critic loop (which re-plans a *valid* deck for quality). |
+| 2026-06-04 | 0.1.6 | **MinerU cloud-API PDF backend** (§6.1): high-fidelity parsing (clean reading-order text, LaTeX formulas, HTML tables, precise `chart` figure crops + captions) via `mineru.net/api/v4`, an arms-length service (license-clean). Selected by `MINERU_API_KEY`/`ASA_PDF_PARSER`, pdfplumber fallback. Verified on Zhang 2026: 55k clean chars + 4 figures vs pdfplumber's jumbled text + 3 heuristic crops. |

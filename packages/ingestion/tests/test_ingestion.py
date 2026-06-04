@@ -171,3 +171,39 @@ def test_no_caption_yields_no_figures(tmp_path):
     from ingestion import extract_figures
 
     assert extract_figures(pdf, tmp_path / "ws2") == []
+
+
+# --- add-mineru-parser: content_list -> Evidence Pool (no network) ------------
+
+
+def test_parse_mineru_content_list(tmp_path):
+    from ingestion import parse_mineru_content_list
+
+    assets_dir = tmp_path / "mineru"
+    (assets_dir / "images").mkdir(parents=True)
+    img = assets_dir / "images" / "fig1.jpg"
+    img.write_bytes(b"\xff\xd8\xff\xe0JFIF")  # minimal jpeg-ish bytes
+
+    blocks = [
+        {"type": "text", "text": "Introduction", "text_level": 1, "page_idx": 0},
+        {"type": "text", "text": "Atmospheric oxygen rose over billions of years.", "page_idx": 0},
+        {"type": "equation", "text": "O_2 = f(t)", "text_format": "latex", "page_idx": 0},
+        {
+            "type": "table",
+            "table_body": "<table><tr><td>Sample</td><td>Value</td></tr><tr><td>HT-1</td><td>0.7</td></tr></table>",
+            "table_caption": ["Table 1. measurements"],
+            "page_idx": 1,
+        },
+        # MinerU renders figures as type "chart"; caption may be empty -> borrowed from a "Fig. N" text
+        {"type": "text", "text": "Fig. 1. Temporal trends of trace elements.", "page_idx": 1},
+        {"type": "chart", "img_path": "images/fig1.jpg", "chart_caption": [], "page_idx": 1},
+    ]
+    res = parse_mineru_content_list(blocks, assets_dir, "paper.pdf", tmp_path / "ws", "paper")
+
+    texts = [a for a in res.assets if a.kind == "section_text"]
+    figs = [a for a in res.assets if a.kind == "figure"]
+    assert len(res.tables) == 1 and res.tables[0].columns == ["Sample", "Value"]
+    assert any("# Introduction" in a.content_ref and "[formula] O_2" in a.content_ref for a in texts)
+    assert len(figs) == 1
+    assert Path(figs[0].content_ref).is_file()
+    assert "Fig. 1" in figs[0].locator["caption"]
