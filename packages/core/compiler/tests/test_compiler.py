@@ -203,6 +203,62 @@ def test_figure_resolved_via_resolver(tmp_path):
     assert any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)
 
 
+def _png(path, w, h):
+    from PIL import Image
+
+    Image.new("RGB", (w, h), (200, 200, 200)).save(str(path))
+    return path
+
+
+def test_figure_is_contained_and_centered(tmp_path):
+    img = _png(tmp_path / "wide.png", 800, 200)  # wide image
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s",
+                layout_type=LayoutType.FIGURE_CAPTION,
+                title="f",
+                blocks=[FigureBlock(asset_id="i", caption="cap")],
+            )
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "fit.pptx", asset_resolver={"i": str(img)})
+    prs = Presentation(str(out))
+    slide = prs.slides[0]
+    pics = [sh for sh in slide.shapes if sh.shape_type == MSO_SHAPE_TYPE.PICTURE]
+    assert pics
+    pic = pics[0]
+    content_w = prs.slide_width - 2 * Inches(0.5)
+    assert pic.width <= content_w  # not forced past content width
+    assert abs(pic.height / pic.width - 200 / 800) < 0.02  # aspect preserved
+    # centered horizontally within the content area
+    center = pic.left + pic.width / 2
+    assert abs(center - prs.slide_width / 2) < Inches(0.2)
+
+
+def test_figure_gets_more_room_than_bullets(tmp_path):
+    img = _png(tmp_path / "sq.png", 400, 400)
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s",
+                layout_type=LayoutType.FIGURE_CAPTION,
+                title="f",
+                blocks=[FigureBlock(asset_id="i"), BulletBlock(items=["a", "b"])],
+            )
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "room.pptx", asset_resolver={"i": str(img)})
+    prs = Presentation(str(out))
+    shapes = list(prs.slides[0].shapes)
+    pic = next(sh for sh in shapes if sh.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    bullets = next(sh for sh in shapes if sh.has_text_frame and "a" in sh.text_frame.text)
+    # the figure region (square image fit) is taller than the bullets textbox
+    assert pic.height > bullets.height
+
+
 def test_unresolved_figure_falls_back_to_placeholder(tmp_path):
     deck = Deck(
         deck_id="d",

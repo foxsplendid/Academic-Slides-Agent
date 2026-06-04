@@ -28,6 +28,8 @@ from .formula_renderer import FormulaRenderer, NullFormulaRenderer
 
 _MARGIN = Inches(0.5)
 _CENTERED = (LayoutType.TITLE, LayoutType.SECTION)
+# Figures dominate; tables/formulas need room; bullets are compact. Used for weighted region heights.
+_BLOCK_WEIGHT = {"figure": 3.2, "table": 2.0, "formula": 1.6, "bullets": 1.0}
 
 
 def _blank_layout(prs):
@@ -77,11 +79,15 @@ def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resol
     content_h = int(slide_h) - content_top - int(_MARGIN)
     gap = int(Inches(0.15))
     n = len(s.blocks)
-    slice_h = (content_h - gap * (n - 1)) // n
-    for i, block in enumerate(s.blocks):
-        top = content_top + i * (slice_h + gap)
-        region = (content_left, top, content_width, slice_h)
+    weights = [_BLOCK_WEIGHT.get(b.type, 1.0) for b in s.blocks]
+    total_w = sum(weights)
+    usable_h = content_h - gap * (n - 1)
+    cursor = content_top
+    for block, w in zip(s.blocks, weights):
+        slice_h = int(usable_h * w / total_w)
+        region = (content_left, cursor, content_width, slice_h)
         _render_block(slide, block, region, renderer, asset_resolver)
+        cursor += slice_h + gap
 
 
 def compile_deck(

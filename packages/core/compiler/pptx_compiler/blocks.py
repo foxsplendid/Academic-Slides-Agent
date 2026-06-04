@@ -120,12 +120,30 @@ def render_formula(slide, block: FormulaBlock, region: Region, renderer: Formula
 def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None):
     left, top, width, height = region
     # Resolve the asset_id to a rendered image path (Evidence Pool), then fall back to a raw path.
-    resolved = None
-    if asset_resolver:
-        resolved = asset_resolver.get(block.asset_id)
+    resolved = asset_resolver.get(block.asset_id) if asset_resolver else None
     candidate = Path(resolved) if resolved else Path(block.asset_id)
     if candidate.is_file():
-        return slide.shapes.add_picture(str(candidate), left, top, width=width)
+        caption_h = int(Pt(28)) if block.caption else 0  # reserve a line for the caption
+        avail_h = max(1, height - caption_h)
+        # Fit the image into (width, avail_h) preserving aspect ratio; center horizontally.
+        try:
+            from PIL import Image
+
+            with Image.open(str(candidate)) as im:
+                iw, ih = im.size
+            scale = min(width / iw, avail_h / ih)
+            w, h = max(1, int(iw * scale)), max(1, int(ih * scale))
+        except Exception:
+            w, h = width, avail_h  # defensive (python-pptx already requires Pillow)
+        x = left + (width - w) // 2
+        pic = slide.shapes.add_picture(str(candidate), x, top, width=w, height=h)
+        if block.caption:
+            cap = slide.shapes.add_textbox(left, top + h, width, caption_h)
+            cap.text_frame.word_wrap = True
+            para = cap.text_frame.paragraphs[0]
+            para.alignment = PP_ALIGN.CENTER
+            add_rich_text(para, block.caption, size=Pt(11))
+        return pic
 
     # Placeholder when the asset is not resolvable (e.g. the planner described a figure with no asset).
     box = slide.shapes.add_textbox(left, top, width, height)
