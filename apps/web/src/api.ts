@@ -14,13 +14,23 @@ export async function uploadJob(files: File[]): Promise<string> {
   return (await res.json()).job_id as string;
 }
 
+export interface Progress {
+  phase: string;
+  done?: number;
+  total?: number;
+}
+
 export function streamJob(
   jobId: string,
   onUpdate: (node: string, phase: string) => void,
   onAwaitingApproval: (outline: OutlineItem[]) => void,
   onError: (message: string) => void,
+  onProgress?: (p: Progress) => void,
 ): () => void {
   const es = new EventSource(`${API_BASE}/jobs/${jobId}/stream`);
+  es.addEventListener("progress", (ev) => {
+    onProgress?.(JSON.parse((ev as MessageEvent).data) as Progress);
+  });
   es.addEventListener("update", (ev) => {
     const data = JSON.parse((ev as MessageEvent).data) as Record<string, { phase?: string }>;
     for (const node of Object.keys(data)) onUpdate(node, data[node]?.phase ?? "");

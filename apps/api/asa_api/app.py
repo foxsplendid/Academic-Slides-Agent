@@ -121,9 +121,12 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", p
         initial = jobs[job_id]
 
         def gen():
-            for update in graph.stream(initial, cfg(job_id), stream_mode="updates"):
-                if isinstance(update, dict) and "__interrupt__" not in update:
-                    yield _sse("update", _progress(update))
+            # ["updates","custom"] yields (mode, chunk): node deltas + per-slide progress events.
+            for mode, chunk in graph.stream(initial, cfg(job_id), stream_mode=["updates", "custom"]):
+                if mode == "custom":
+                    yield _sse("progress", chunk.get("progress", chunk) if isinstance(chunk, dict) else {})
+                elif mode == "updates" and isinstance(chunk, dict) and "__interrupt__" not in chunk:
+                    yield _sse("update", _progress(chunk))
             snap = graph.get_state(cfg(job_id))
             if "approval" in (snap.next or ()):
                 yield _sse("awaiting_approval", {"outline": _get(snap.values, "outline")})

@@ -9,12 +9,15 @@ is what produces depth. Assembled slides pass the strict Slide-IR boundary.
 from __future__ import annotations
 
 import json
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable, Optional
 
 from slide_ir import Deck, EvidenceAsset, IRBoundaryError, SlideIR, TableBlock
 
 from .llm import LLM
 from .outline import _evidence_digest, _extract_json, _figure_ids
+
+Progress = Optional[Callable[[dict], None]]
 
 SKELETON_SYSTEM = """你是科研组会汇报的策划专家。基于论文证据,规划一份**中文**组会 deck 的骨架(8-12 页),\
 遵循方法/数据论文叙事:科学问题→研究背景→数据与方法→结果与验证→讨论/机制→创新与展望。
@@ -117,18 +120,57 @@ def _expand_slide(
     raise IRBoundaryError(f"slide expansion failed for {plan.get('slide_id')}: {last}")
 
 
+def _emit(progress: Progress, event: dict) -> None:
+    if progress:
+        try:
+            progress(event)
+        except Exception:  # progress is best-effort; never let it break generation
+            pass
+
+
 def build_deck_detailed(
     assets: list[EvidenceAsset],
     tables: list[TableBlock],
     llm: LLM,
     *,
     feedback: Optional[list[str]] = None,
+    progress: Progress = None,
+    parallel: bool = True,
+    max_workers: int = 6,
 ) -> Deck:
-    """Skeleton -> per-slide focused expansion -> assembled Deck (validated by the IR boundary)."""
+    """Skeleton -> per-slide focused expansion -> assembled Deck (validated by the IR boundary).
+
+    Slides are expanded in parallel by default (each is independent; calls are I/O-bound); on any
+    worker failure it falls back to serial. ``progress`` is called for the skeleton and each slide.
+    """
+    _emit(progress, {"phase": "skeleton"})
     plans = _skeleton(assets, tables, llm, feedback)
     if not plans:
         raise IRBoundaryError("skeleton produced no slides")
+    total = len(plans)
+    _emit(progress, {"phase": "skeleton_done", "total": total})
     ev_by_page = _evidence_by_page(assets)
     figs_by_id = _figures_by_id(assets)
-    slides = [_expand_slide(plan, ev_by_page, figs_by_id, llm) for plan in plans]
-    return Deck(deck_id="deck", slides=slides)  # pydantic re-validates the assembled deck
+
+    def expand(plan: dict) -> SlideIR:
+        return _expand_slide(plan, ev_by_page, figs_by_id, llm)
+
+    slides: list[Optional[SlideIR]] = [None] * total
+    if parallel and total > 1:
+        try:
+            with ThreadPoolExecutor(max_workers=min(max_workers, total)) as pool:
+                futures = {pool.submit(expand, plan): i for i, plan in enumerate(plans)}
+                done = 0
+                for fut in as_completed(futures):
+                    slides[futures[fut]] = fut.result()  # propagates worker exceptions
+                    done += 1
+                    _emit(progress, {"phase": "slide", "done": done, "total": total})
+            return Deck(deck_id="deck", slides=[s for s in slides if s is not None])
+        except Exception:
+            _emit(progress, {"phase": "fallback_serial"})  # parallel failed -> serial below
+
+    serial: list[SlideIR] = []
+    for i, plan in enumerate(plans):
+        serial.append(expand(plan))
+        _emit(progress, {"phase": "slide", "done": i + 1, "total": total})
+    return Deck(deck_id="deck", slides=serial)  # pydantic re-validates the assembled deck

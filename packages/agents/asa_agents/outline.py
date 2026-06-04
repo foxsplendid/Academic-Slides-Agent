@@ -106,12 +106,14 @@ def build_outline(
     *,
     feedback: Optional[list[str]] = None,
     max_attempts: int = 3,
+    progress=None,
 ) -> Deck:
     """Call the LLM and parse its output through the Slide-IR boundary (rejects non-IR).
 
     ``feedback`` carries the critic's findings from a prior pass so the planner fixes them on retry.
     Transient malformed output (dropped char, wrong enum, stray fence) is retried up to
     ``max_attempts`` times with the validation error fed back; the boundary itself stays strict.
+    ``progress`` is accepted for planner-signature parity with the two-stage builder (unused here).
     """
     base = build_outline_prompt(assets, tables)
     if feedback:

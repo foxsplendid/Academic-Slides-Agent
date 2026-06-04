@@ -43,7 +43,21 @@ def build_graph(
         # On a retry the prior critic findings are fed back so the LLM fixes them; the counter
         # advances exactly when feedback is consumed, so it tracks re-plans (not the initial plan).
         feedback = state.critic_findings or None
-        deck = planner(state.evidence, state.tables, llm, feedback=feedback)  # LLM -> IR boundary
+        try:  # forward per-slide progress to the custom stream so the UI can show it live
+            from langgraph.config import get_stream_writer
+
+            writer = get_stream_writer()
+        except Exception:
+            writer = None
+
+        def progress(event: dict) -> None:
+            if writer:
+                try:
+                    writer({"progress": event})
+                except Exception:
+                    pass
+
+        deck = planner(state.evidence, state.tables, llm, feedback=feedback, progress=progress)
         outline = [
             {"slide_id": s.slide_id, "layout_type": s.layout_type.value, "title": s.title}
             for s in deck.slides

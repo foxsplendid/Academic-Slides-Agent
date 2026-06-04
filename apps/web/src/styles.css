@@ -42,6 +42,60 @@ button:disabled {
   opacity: 0.5;
   cursor: default;
 }
+.stepper {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+  color: #999;
+}
+.step .dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #e3e5e8;
+  color: #888;
+  font-size: 0.8rem;
+  flex: none;
+}
+.step.done {
+  color: #1d8a4e;
+}
+.step.done .dot {
+  background: #1d8a4e;
+  color: #fff;
+}
+.step.active {
+  color: #003a70;
+  font-weight: 600;
+}
+.step.active .dot {
+  background: #003a70;
+  color: #fff;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.hint {
+  color: #555;
+  font-size: 0.9rem;
+  margin: 0.6rem 0 0;
+}
+.details summary {
+  cursor: pointer;
+  color: #666;
+  font-size: 0.85rem;
+}
 .log {
   font-family: ui-monospace, "SFMono-Regular", monospace;
   font-size: 0.85rem;

@@ -7,11 +7,13 @@ openspec/changes/add-outline-agent/specs/outline-agent/spec.md.
 from __future__ import annotations
 
 import json
+import re
+import threading
 
 import pytest
 
 from slide_ir import EvidenceAsset, GenerationState, IRBoundaryError, Phase, TableBlock
-from asa_agents import FakeLLM, approve_outline, build_outline, plan_outline
+from asa_agents import FakeLLM, approve_outline, build_deck_detailed, build_outline, plan_outline
 
 
 def _evidence():
@@ -200,3 +202,69 @@ def test_two_stage_keeps_assigned_figure():
     deck = build_deck_detailed(assets, [], FakeLLM(skeleton, slide))
     figs = [b for s in deck.slides for b in s.blocks if b.type == "figure"]
     assert figs and figs[0].asset_id == "fig1"
+
+
+# --- add-parallel-progress: parallel expansion + progress --------------------
+
+
+def _plans(n):
+    return [
+        {"slide_id": f"s{i}", "layout_type": "bullet_evidence", "title": f"页{i}", "focus": "f", "evidence_pages": [], "figure_id": None}
+        for i in range(n)
+    ]
+
+
+def _slide_json(title):
+    return json.dumps(
+        {"title": title, "blocks": [{"type": "bullets", "items": ["a", "b", "c", "d"]}], "speaker_notes": "n", "provenance": {"source": "p"}}
+    )
+
+
+class _EchoLLM:
+    """Skeleton, then echo each slide's title from the prompt — order-independent & thread-safe."""
+
+    def __init__(self, skeleton):
+        self.skeleton = skeleton
+        self._lock = threading.Lock()
+
+    def complete(self, prompt, *, system=None):
+        with self._lock:
+            pass
+        if system and "一页" in system:  # expansion call
+            m = re.search(r"页标题:(.+)", prompt)
+            return _slide_json(m.group(1).strip() if m else "X")
+        return self.skeleton
+
+
+def test_parallel_preserves_order_and_reports_progress():
+    assets, tables = _evidence()
+    llm = _EchoLLM(json.dumps({"slides": _plans(5)}))
+    events: list[dict] = []
+    deck = build_deck_detailed(assets, tables, llm, progress=events.append)
+    assert [s.title for s in deck.slides] == [f"页{i}" for i in range(5)]  # order preserved
+    slide_events = [e for e in events if e.get("phase") == "slide"]
+    assert slide_events[-1]["done"] == 5 and slide_events[-1]["total"] == 5
+
+
+class _WorkerFailLLM:
+    """Expansion fails on worker threads (forces the serial fallback) but works on the main thread."""
+
+    def __init__(self, skeleton):
+        self.skeleton = skeleton
+
+    def complete(self, prompt, *, system=None):
+        if system and "一页" in system:
+            if threading.current_thread() is not threading.main_thread():
+                raise RuntimeError("parallel boom")
+            m = re.search(r"页标题:(.+)", prompt)
+            return _slide_json(m.group(1).strip() if m else "X")
+        return self.skeleton
+
+
+def test_serial_fallback_on_worker_failure():
+    assets, tables = _evidence()
+    llm = _WorkerFailLLM(json.dumps({"slides": _plans(3)}))
+    events: list[dict] = []
+    deck = build_deck_detailed(assets, tables, llm, progress=events.append)
+    assert len(deck.slides) == 3  # serial fallback produced the full deck
+    assert any(e.get("phase") == "fallback_serial" for e in events)
