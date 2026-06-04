@@ -68,10 +68,12 @@ def build_graph(
     def compile_slides(state: GenerationState) -> dict:
         out_dir_path.mkdir(parents=True, exist_ok=True)
         out_path = out_dir_path / f"{state.job_id}.pptx"
+        resolver = {a.asset_id: a.content_ref for a in state.evidence if a.kind == "figure"}
         compile_deck(
             Deck(deck_id=state.job_id, slides=state.slides),
             out_path,
             formula_renderer=formula_renderer,
+            asset_resolver=resolver,
         )
         return {"output_path": str(out_path), "phase": Phase.DONE}
 

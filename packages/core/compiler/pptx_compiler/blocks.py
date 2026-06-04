@@ -117,13 +117,17 @@ def render_formula(slide, block: FormulaBlock, region: Region, renderer: Formula
     return box
 
 
-def render_figure(slide, block: FigureBlock, region: Region):
+def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None):
     left, top, width, height = region
-    candidate = Path(block.asset_id)
+    # Resolve the asset_id to a rendered image path (Evidence Pool), then fall back to a raw path.
+    resolved = None
+    if asset_resolver:
+        resolved = asset_resolver.get(block.asset_id)
+    candidate = Path(resolved) if resolved else Path(block.asset_id)
     if candidate.is_file():
         return slide.shapes.add_picture(str(candidate), left, top, width=width)
 
-    # Placeholder when the asset is not resolvable yet (figure extraction is a later change).
+    # Placeholder when the asset is not resolvable (e.g. the planner described a figure with no asset).
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
     tf.word_wrap = True

@@ -39,7 +39,7 @@ def _blank_layout(prs):
     return min(layouts, key=lambda layout: len(list(layout.placeholders)))
 
 
-def _render_block(slide, block, region, renderer: FormulaRenderer):
+def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolver=None):
     if isinstance(block, TableBlock):
         _blocks.render_table(slide, block, region)
     elif isinstance(block, BulletBlock):
@@ -47,10 +47,10 @@ def _render_block(slide, block, region, renderer: FormulaRenderer):
     elif isinstance(block, FormulaBlock):
         _blocks.render_formula(slide, block, region, renderer)
     elif isinstance(block, FigureBlock):
-        _blocks.render_figure(slide, block, region)
+        _blocks.render_figure(slide, block, region, asset_resolver)
 
 
-def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer) -> None:
+def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None) -> None:
     slide_w, slide_h = prs.slide_width, prs.slide_height
     content_left = int(_MARGIN)
     content_width = int(slide_w) - 2 * int(_MARGIN)
@@ -81,7 +81,7 @@ def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer) -> None:
     for i, block in enumerate(s.blocks):
         top = content_top + i * (slice_h + gap)
         region = (content_left, top, content_width, slice_h)
-        _render_block(slide, block, region, renderer)
+        _render_block(slide, block, region, renderer, asset_resolver)
 
 
 def compile_deck(
@@ -90,11 +90,13 @@ def compile_deck(
     *,
     template: Optional[str | Path] = None,
     formula_renderer: Optional[FormulaRenderer] = None,
+    asset_resolver: Optional[dict] = None,
 ) -> Path:
     """Render a `Deck` to a native, editable `.pptx` and return the output path.
 
     When `template` is a `.pptx` path, it is used as the base presentation so the output
-    inherits its theme, fonts, and slide size.
+    inherits its theme, fonts, and slide size. ``asset_resolver`` maps a figure block's
+    ``asset_id`` to a rendered image path (from the Evidence Pool).
     """
     prs = Presentation(str(template)) if template else Presentation()
     if template is None:  # default to 16:9 widescreen to match the reference 组会 deck
@@ -105,7 +107,7 @@ def compile_deck(
 
     for slide_ir in deck.slides:
         slide = prs.slides.add_slide(layout)
-        _render_slide(prs, slide, slide_ir, renderer)
+        _render_slide(prs, slide, slide_ir, renderer, asset_resolver)
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)

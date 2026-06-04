@@ -15,6 +15,7 @@ from pptx.util import Inches
 from slide_ir import (
     BulletBlock,
     Deck,
+    FigureBlock,
     FormulaBlock,
     LayoutType,
     SlideIR,
@@ -178,3 +179,44 @@ def test_emphasis_span_becomes_red_bold_run(tmp_path):
         and str(r.font.color.rgb) == "FF0000"
     ]
     assert any(r.text == "key" for r in reds)
+
+
+# --- add-figure-extraction: asset resolution ---------------------------------
+
+
+def test_figure_resolved_via_resolver(tmp_path):
+    img = tmp_path / "r.png"
+    img.write_bytes(_PNG_1x1)
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s",
+                layout_type=LayoutType.FIGURE_CAPTION,
+                title="f",
+                blocks=[FigureBlock(asset_id="img1", caption="c")],
+            )
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "fig.pptx", asset_resolver={"img1": str(img)})
+    slide = Presentation(str(out)).slides[0]
+    assert any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)
+
+
+def test_unresolved_figure_falls_back_to_placeholder(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s",
+                layout_type=LayoutType.FIGURE_CAPTION,
+                title="f",
+                blocks=[FigureBlock(asset_id="missing", caption="c")],
+            )
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "ph.pptx", asset_resolver={})
+    slide = Presentation(str(out)).slides[0]
+    assert not any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)
+    texts = " ".join(sh.text_frame.text for sh in slide.shapes if sh.has_text_frame)
+    assert "missing" in texts

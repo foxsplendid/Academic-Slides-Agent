@@ -32,7 +32,9 @@ SYSTEM_PROMPT = """你是一名科研组会/学术报告的幻灯片策划专家
 - 每条 bullet 至多把一个最关键的词或数字用 **…** 包起来表示重点(编译器会渲染成红色加粗),不要滥用
 
 配图规则:只允许引用"可用图 asset_id"列表中确实存在的 id;若该列表为空或某图不在其中,\
-**不要**输出 figure block,而是用一条 bullet 文字描述该图(如 "论文 Fig.2:大气 O₂ 演化重建曲线")。
+**不要**输出 figure block,而是用一条 bullet 文字描述该图(如 "论文 Fig.2:大气 O₂ 演化重建曲线")。\
+**以图为主的页面 layout_type 必须用 "figure_caption"(这是版式名,不要写成 block 的 "figure")**;\
+该页放一个 figure block(asset_id 取自可用列表)+ 简短 caption。
 
 只输出一个 JSON 对象(不要任何解释、不要 markdown 代码围栏),严格匹配以下 schema:
 {"deck_id": "<id>", "slides": [
@@ -64,7 +66,8 @@ def _evidence_digest(
         elif asset.kind == "table":
             lines.append(f"[table @ {asset.source} {asset.locator}] ref={asset.content_ref}")
         elif asset.kind == "figure":
-            lines.append(f"[figure @ {asset.source}] {asset.asset_id}")
+            cap = asset.locator.get("caption", "") if isinstance(asset.locator, dict) else ""
+            lines.append(f"[figure @ {asset.source}] asset_id={asset.asset_id} — {cap}")
         else:
             lines.append(f"[{asset.kind} @ {asset.source}]")
     for i, table in enumerate(tables):

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.3 |
+| **Version** | 0.1.4 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -250,9 +250,14 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
 - **Archives:** unpack `.zip`, route by extension (xlsx/csv→table; pdf→text/figure; png→figure).
 - **Main doc:** prefer **LaTeX source** (`\begin{table}` parses cleanly); else PDF→Markdown via
   `markitdown` (MIT).
-- **PDF tables (best-effort only):** `pdfplumber` (MIT) for ruled tables; on failure, fall back
-  to "figure + caption" or on-demand VLM. Do not over-engineer.
-- **Forbidden:** PyMuPDF/fitz (AGPL). Use `pypdfium2` for any PDF rasterization.
+- **PDF tables (best-effort only):** `pdfplumber` (MIT) for ruled tables; low-quality tables
+  (no data rows / <2 cols / mostly auto-named headers) are dropped. Two-column pages are
+  extracted column-by-column (gutter crop) to preserve reading order.
+- **PDF figures (implemented):** hard-science figures are usually *vector*, so we **render**
+  caption-anchored regions (`Fig. N` band) with `pypdfium2` → PNG → `figure` Evidence assets
+  (`ingestion/figures.py`). The compiler resolves a figure block's `asset_id` to the rendered PNG
+  via an `asset_resolver`. Best-effort regions; panel-splitting is out of scope.
+- **Forbidden:** PyMuPDF/fitz (AGPL). Use `pypdfium2` (PDFium = BSD) for any PDF rasterization.
 
 ### 6.2 Formula (`packages/core/formula/`)
 - **v1 (shipped):** LaTeX → **high-DPI PNG** via matplotlib `mathtext` (pure-Python, in-process,
@@ -343,3 +348,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-03 | 0.1.1 | Formula v1 changed from MathJax→SVG to **matplotlib mathtext→PNG** (in-process, BSD, privacy-friendly, direct python-pptx embedding); MathJax/SVG deferred to v1.5 behind the same `FormulaRenderer` interface. |
 | 2026-06-03 | 0.1.2 | Critic §6.5 v1 landed: **deterministic, AI-free `critique_deck`** measuring Slide-IR + a **bounded `plan↔critic` retry loop** (feedback to planner, `max_retries`) running before the Hard-Stop. VLM critic stays v2. |
 | 2026-06-04 | 0.1.3 | Quality tuning on a real paper (MiMo): planner now outputs a **Chinese 组会 talk** (method-paper narrative, concise titles, per-slide interpretation, **speaker notes**, terms kept original, figures grounded in the Evidence Pool — no hallucinated refs); compiler renders **16:9 + CJK fonts + `**…**` red-bold emphasis**; ingestion gains **two-column-aware PDF text** + **junk-table filtering** + wider digest. Figure *extraction* still deferred. |
+| 2026-06-04 | 0.1.4 | **Figure extraction (§6.1) landed**: caption-anchored region rendering via `pypdfium2` (BSD) → `figure` Evidence assets; compiler resolves figure `asset_id`→rendered PNG via `asset_resolver`; planner sees figure ids+captions. Verified on Zhang 2026 (Fig.1–3 rendered, embedded natively). Vector figures handled; panel-splitting/OCR out of scope. |

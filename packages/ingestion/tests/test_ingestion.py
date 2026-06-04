@@ -126,3 +126,48 @@ def test_low_quality_table_is_filtered():
     assert not is_low_quality_table(
         TableBlock(columns=["Sample", "87Sr/86Sr"], rows=[["HT-1", "0.7041"]])
     )
+
+
+# --- add-figure-extraction ---------------------------------------------------
+
+
+def _figure_pdf(path):
+    mpl = pytest.importorskip("matplotlib")
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure(figsize=(6, 7))
+    fig.text(0.12, 0.85, "Introductory body text long enough to act as the prose boundary above figure.")
+    ax = fig.add_axes([0.15, 0.4, 0.6, 0.35])
+    ax.plot([0, 1, 2], [1, 3, 2])
+    fig.text(0.12, 0.2, "Fig. 1. Synthetic test figure caption used for the extraction unit test here.")
+    fig.savefig(path)
+    plt.close(fig)
+
+
+def test_figure_extraction_from_caption(tmp_path):
+    pdf = tmp_path / "fig.pdf"
+    _figure_pdf(pdf)
+    from ingestion import extract_figures
+
+    assets = extract_figures(pdf, tmp_path / "ws")
+    assert assets, "expected at least one figure asset"
+    a = assets[0]
+    assert a.kind == "figure"
+    assert Path(a.content_ref).is_file() and Path(a.content_ref).stat().st_size > 0
+    assert "Fig. 1" in a.locator["caption"] and a.locator["page"] == 1
+
+
+def test_no_caption_yields_no_figures(tmp_path):
+    mpl = pytest.importorskip("matplotlib")
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+
+    pdf = tmp_path / "plain.pdf"
+    fig = plt.figure()
+    fig.text(0.1, 0.5, "JustBodyTextNoCaptions")
+    fig.savefig(pdf)
+    plt.close(fig)
+    from ingestion import extract_figures
+
+    assert extract_figures(pdf, tmp_path / "ws2") == []

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 from slide_ir import EvidenceAsset
 
@@ -13,7 +14,7 @@ from .spreadsheet import ingest_csv, ingest_xlsx
 _IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
-def ingest_path(path: str | Path) -> IngestResult:
+def ingest_path(path: str | Path, *, workspace: Optional[str | Path] = None) -> IngestResult:
     path = Path(path)
     ext = path.suffix.lower()
     if ext in (".xlsx", ".xlsm"):
@@ -21,7 +22,7 @@ def ingest_path(path: str | Path) -> IngestResult:
     if ext == ".csv":
         return ingest_csv(path)
     if ext == ".pdf":
-        return ingest_pdf(path)
+        return ingest_pdf(path, workspace=workspace)
     if ext == ".zip":
         from .archive import ingest_zip
 
@@ -35,8 +36,8 @@ def ingest_path(path: str | Path) -> IngestResult:
     return IngestResult()  # unknown type -> skipped (no raise)
 
 
-def ingest(*paths: str | Path) -> IngestResult:
+def ingest(*paths: str | Path, workspace: Optional[str | Path] = None) -> IngestResult:
     result = IngestResult()
     for path in paths:
-        result.merge(ingest_path(Path(path)))
+        result.merge(ingest_path(Path(path), workspace=workspace))
     return result

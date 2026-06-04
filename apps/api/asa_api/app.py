@@ -82,7 +82,8 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports") -
     @app.post("/jobs")
     def create_job(req: CreateJob):
         job_id = req.job_id or uuid.uuid4().hex[:12]
-        result = ingest(*req.inputs) if req.inputs else None
+        workspace = Path(out_dir) / "assets" / job_id
+        result = ingest(*req.inputs, workspace=workspace) if req.inputs else None
         state = GenerationState(
             job_id=job_id,
             evidence=(result.assets if result else []),
@@ -101,7 +102,7 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports") -
             dest = job_dir / (upload.filename or "upload.bin")
             dest.write_bytes(await upload.read())
             paths.append(str(dest))
-        result = ingest(*paths) if paths else None
+        result = ingest(*paths, workspace=job_dir) if paths else None
         state = GenerationState(
             job_id=job_id,
             evidence=(result.assets if result else []),

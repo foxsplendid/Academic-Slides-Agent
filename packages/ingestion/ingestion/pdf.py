@@ -7,11 +7,13 @@ TableBlocks flagged `needs_human_check`, after low-quality tables are filtered o
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import pdfplumber
 
 from slide_ir import EvidenceAsset
 
+from .figures import extract_figures
 from .models import IngestResult, add_table, is_low_quality_table, rows_to_table
 
 
@@ -35,7 +37,7 @@ def _extract_page_text(page) -> str:
     return (page.extract_text() or "").strip()
 
 
-def ingest_pdf(path: str | Path) -> IngestResult:
+def ingest_pdf(path: str | Path, *, workspace: Optional[str | Path] = None) -> IngestResult:
     path = Path(path)
     result = IngestResult()
     with pdfplumber.open(str(path)) as pdf:
@@ -66,4 +68,6 @@ def ingest_pdf(path: str | Path) -> IngestResult:
                     source=path.name,
                     locator={"page": pageno},
                 )
+    if workspace is not None:  # render caption-anchored figures into the workspace
+        result.assets.extend(extract_figures(path, workspace))
     return result
