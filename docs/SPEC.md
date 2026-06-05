@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.10 |
+| **Version** | 0.1.11 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -367,3 +367,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-04 | 0.1.8 | **Figure layout**: weighted per-block regions (figure ≫ table > formula > bullets) + aspect-preserving, centered figure fit (contain) with a caption line, replacing equal slices + forced full-width. Verified: Zhang figures keep their 1.46/4.75/1.05 ratios, centered, no overflow. |
 | 2026-06-04 | 0.1.9 | **Parallel generation + live progress**: two-stage builder expands slides concurrently (thread pool, serial fallback on failure) with a `progress` callback; the graph `plan` node forwards it via LangGraph's custom stream writer; the SSE endpoint streams `progress` events; the web UI shows a phase stepper + live N/total slide counter. Verified live on Zhang 2026: `skeleton→slide 1..10→critic→awaiting_approval`. |
 | 2026-06-04 | 0.1.10 | **Data charts**: new `ChartBlock` (bar/line/scatter/pie) in the locked IR vocabulary → **native, editable** python-pptx charts (CategoryChartData / XyChartData). Planner emits charts **only from evidence data (no fabrication)**. Verified: two-stage emitted 2 bar charts from real SHAP values, compiled as native charts. |
+| 2026-06-06 | 0.1.11 | **Supplementary inputs reach generation**: skeleton plans gain `table_refs`; per-slide expansion is fed the referenced tables' actual data (`serialize_table`, high row cap + remainder note), so supplementary Excel/CSV data drives charts/discussion. Zip ingestion forwards the workspace to members; upload returns per-type counts; the web picker is supplementary-aware. Verified: a synthetic supp `.xlsx` → faithful native bar chart of all 6 rows. |

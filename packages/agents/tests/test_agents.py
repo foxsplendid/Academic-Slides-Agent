@@ -268,3 +268,33 @@ def test_serial_fallback_on_worker_failure():
     deck = build_deck_detailed(assets, tables, llm, progress=events.append)
     assert len(deck.slides) == 3  # serial fallback produced the full deck
     assert any(e.get("phase") == "fallback_serial" for e in events)
+
+
+# --- add-supplementary-inputs: tables reach expansion ------------------------
+
+
+def test_serialize_table_caps_rows():
+    from asa_agents.outline import serialize_table
+
+    tb = TableBlock(columns=["i"], rows=[[str(n)] for n in range(500)])
+    s = serialize_table(tb, max_rows=10, max_chars=100000)
+    assert "还有 490 行" in s
+    assert s.count("\n") <= 12  # header + 10 rows + remainder note
+
+
+def test_expand_receives_referenced_table_data():
+    from asa_agents.deepen import _expand_slide
+
+    tables = [TableBlock(columns=["el", "shap"], rows=[["Mo", "0.42"], ["Fe", "0.18"]])]
+    captured: dict[str, str] = {}
+
+    class _Cap:
+        def complete(self, prompt, *, system=None):
+            captured["p"] = prompt
+            return json.dumps(
+                {"title": "t", "blocks": [{"type": "bullets", "items": ["a", "b"]}], "speaker_notes": "n", "provenance": {"source": "p"}}
+            )
+
+    plan = {"slide_id": "s1", "layout_type": "bullet_evidence", "title": "t", "focus": "f", "evidence_pages": [], "table_refs": [0]}
+    _expand_slide(plan, {}, {}, _Cap(), tables)
+    assert "Mo" in captured["p"] and "0.42" in captured["p"]  # the table data reached the prompt

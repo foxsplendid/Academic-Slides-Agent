@@ -59,6 +59,29 @@ def test_provenance_records_source_and_locator(tmp_path):
     assert asset.locator == {"sheet": "Data"}
 
 
+def test_zip_forwards_workspace(tmp_path, monkeypatch):
+    import ingestion.router as router
+
+    seen: list = []
+    real = router.ingest_path
+
+    def spy(path, *, workspace=None):
+        seen.append(workspace)
+        return real(path, workspace=workspace)
+
+    monkeypatch.setattr(router, "ingest_path", spy)
+    csvp = tmp_path / "a.csv"
+    _write_csv(csvp, [["h"], ["1"]])
+    zp = tmp_path / "z.zip"
+    with zipfile.ZipFile(zp, "w") as zf:
+        zf.write(csvp, "a.csv")
+    from ingestion import ingest_zip
+
+    ws = tmp_path / "ws"
+    ingest_zip(zp, workspace=ws)
+    assert any(str(w) == str(ws) for w in seen if w is not None)  # member got the workspace
+
+
 def test_zip_recurses(tmp_path):
     csvp = tmp_path / "a.csv"
     _write_csv(csvp, [["h"], ["1"]])

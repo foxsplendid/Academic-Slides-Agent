@@ -6,12 +6,20 @@ export interface OutlineItem {
   title: string;
 }
 
-export async function uploadJob(files: File[]): Promise<string> {
+export interface Ingested {
+  files: number;
+  tables: number;
+  figures: number;
+  text_pages: number;
+}
+
+export async function uploadJob(files: File[]): Promise<{ jobId: string; ingested: Ingested }> {
   const form = new FormData();
   for (const f of files) form.append("files", f);
   const res = await fetch(`${API_BASE}/jobs/upload`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`upload failed: ${res.status}`);
-  return (await res.json()).job_id as string;
+  const data = await res.json();
+  return { jobId: data.job_id as string, ingested: data.ingested as Ingested };
 }
 
 export interface Progress {

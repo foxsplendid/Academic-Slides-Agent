@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { approveJob, downloadUrl, streamJob, uploadJob } from "./api";
-import type { OutlineItem, Progress } from "./api";
+import type { Ingested, OutlineItem, Progress } from "./api";
 
 type Phase = "idle" | "uploading" | "streaming" | "review" | "compiling" | "done" | "error";
 type Stage = "parse" | "outline" | "generate" | "critic";
@@ -14,6 +14,7 @@ export function App() {
   const [stage, setStage] = useState<Stage>("parse");
   const [prog, setProg] = useState<Progress | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [ingested, setIngested] = useState<Ingested | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +33,13 @@ export function App() {
     setLog([]);
     setOutline([]);
     setProg(null);
+    setIngested(null);
     setStage("parse");
     setPhase("uploading");
     try {
-      const id = await uploadJob(files);
+      const { jobId: id, ingested: ing } = await uploadJob(files);
       setJobId(id);
+      setIngested(ing);
       setStage("outline");
       setPhase("streaming");
       streamJob(
@@ -85,10 +88,18 @@ export function App() {
       <p className="sub">论文 + 数据 &rarr; 严谨、原生可编辑的 .pptx</p>
 
       <section className="card">
+        <h2>主论文 PDF + 补充材料(Excel / CSV / zip / 图)</h2>
+        <p className="sub">可一次选多个文件:主论文 PDF,加上补充数据表、图、压缩包。</p>
         <input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
         <button disabled={busy || files.length === 0} onClick={start}>
           {busy ? "生成中…" : "生成幻灯片"}
         </button>
+        {ingested && (
+          <p className="hint">
+            已摄取:{ingested.files} 个文件 · {ingested.text_pages} 页正文 · {ingested.tables} 张数据表 ·{" "}
+            {ingested.figures} 张图
+          </p>
+        )}
       </section>
 
       {active >= 0 && (

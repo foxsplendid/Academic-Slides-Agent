@@ -42,3 +42,11 @@ slide counter, driven by `progress` SSE events.
 - **WHEN** the stream emits `progress` events with `done`/`total` during slide generation
 - **THEN** the UI shows the current phase and the slide counter (e.g. "3 / 10")
 
+### Requirement: Supplementary-aware upload feedback
+The upload response SHALL report per-type ingestion counts, and the web UI SHALL present a
+supplementary-aware file picker and show those counts after upload.
+
+#### Scenario: Upload reports what was ingested
+- **WHEN** files are uploaded
+- **THEN** the response includes counts of ingested files, tables, and figures
+

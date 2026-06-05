@@ -58,6 +58,26 @@ SYSTEM_PROMPT = """你是一名科研组会/学术报告的幻灯片策划专家
 {"deck_id":"d1","slides":[{"slide_id":"s1","layout_type":"title","title":"机器学习重建地球 35 亿年大气氧演化","blocks":[],"speaker_notes":"本工作要回答:大气 O₂ 的长期上升与叠加波动,分别由什么驱动?","provenance":{"source":"paper p1"}},{"slide_id":"s2","layout_type":"bullet_evidence","title":"研究背景","blocks":[{"type":"bullets","items":["大气增氧是地表环境与复杂生命演化的关键","但驱动**长期波动**的机制仍不清楚","论文 Fig.1:前人重建的 O₂ 演化曲线(Lyons et al., 2014)"]}],"speaker_notes":"先交代为什么这个问题重要,以及前人方法的局限。","provenance":{"source":"paper p1-2"}}]}"""
 
 
+def serialize_table(table: TableBlock, *, max_rows: int = 300, max_chars: int = 8000) -> str:
+    """Render a table as text for an LLM prompt: header + rows (high cap), with a remainder note.
+
+    Full data stays in the Evidence Pool; this is the generous-but-bounded view fed to the model.
+    """
+    header = " | ".join(table.columns)
+    out = [header]
+    shown = 0
+    for row in table.rows[:max_rows]:
+        out.append(" | ".join(row))
+        shown += 1
+        if sum(len(line) for line in out) > max_chars:
+            break
+    text = "\n".join(out)
+    remaining = len(table.rows) - shown
+    if remaining > 0:
+        text += f"\n…(还有 {remaining} 行未显示)"
+    return text
+
+
 def _evidence_digest(
     assets: list[EvidenceAsset], tables: list[TableBlock], *, max_chars: int = 12000
 ) -> str:
@@ -65,17 +85,16 @@ def _evidence_digest(
     for asset in assets:
         if asset.kind == "section_text":
             lines.append(f"[text @ {asset.source} {asset.locator}] {(asset.content_ref or '')[:1500]}")
-        elif asset.kind == "table":
-            lines.append(f"[table @ {asset.source} {asset.locator}] ref={asset.content_ref}")
         elif asset.kind == "figure":
             cap = asset.locator.get("caption", "") if isinstance(asset.locator, dict) else ""
             lines.append(f"[figure @ {asset.source}] asset_id={asset.asset_id} — {cap}")
-        else:
+        elif asset.kind != "table":  # table-kind assets are summarized via the `tables` list below
             lines.append(f"[{asset.kind} @ {asset.source}]")
     for i, table in enumerate(tables):
         header = " | ".join(table.columns)
         sample = "; ".join(" , ".join(row) for row in table.rows[:3])
-        lines.append(f"[table:{i}] cols=({header}) sample=({sample})")
+        src = table.caption or ""
+        lines.append(f"[表 {i} | {src}] 列=({header}) 共{len(table.rows)}行 样例=({sample})")
     return "\n".join(lines)[:max_chars]
 
 

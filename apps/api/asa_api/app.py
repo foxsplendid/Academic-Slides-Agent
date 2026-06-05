@@ -106,13 +106,23 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", p
             dest.write_bytes(await upload.read())
             paths.append(str(dest))
         result = ingest(*paths, workspace=job_dir) if paths else None
+        assets = result.assets if result else []
         state = GenerationState(
             job_id=job_id,
-            evidence=(result.assets if result else []),
+            evidence=assets,
             tables=(result.tables if result else []),
         )
         jobs[job_id] = state.model_dump()
-        return {"job_id": job_id, "status": "created", "ingested": len(paths)}
+        return {
+            "job_id": job_id,
+            "status": "created",
+            "ingested": {
+                "files": len(paths),
+                "tables": len(result.tables) if result else 0,
+                "figures": sum(1 for a in assets if a.kind == "figure"),
+                "text_pages": sum(1 for a in assets if a.kind == "section_text"),
+            },
+        }
 
     @app.get("/jobs/{job_id}/stream")
     def stream(job_id: str):

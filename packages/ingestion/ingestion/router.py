@@ -52,7 +52,7 @@ def ingest_path(path: str | Path, *, workspace: Optional[str | Path] = None) -> 
     if ext == ".zip":
         from .archive import ingest_zip
 
-        return ingest_zip(path)
+        return ingest_zip(path, workspace=workspace)
     if ext in _IMAGE_EXT:
         result = IngestResult()
         result.assets.append(

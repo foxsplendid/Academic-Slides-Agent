@@ -90,7 +90,9 @@ def test_upload_creates_job(tmp_path):
     assert r.status_code == 200
     body = r.json()
     assert body["job_id"]
-    assert body["ingested"] == 1
+    # per-type ingestion counts: one CSV file -> one table
+    assert body["ingested"]["files"] == 1
+    assert body["ingested"]["tables"] == 1
 
 
 def test_cors_header_present(tmp_path):
