@@ -45,8 +45,8 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
         # Layout/block consistency.
         if s.layout_type == LayoutType.FORMULA_BANNER and "formula" not in kinds:
             findings.append(f"{tag}: layout 'formula_banner' but no formula block")
-        if s.layout_type == LayoutType.TWO_COLUMN_TABLE and "table" not in kinds:
-            findings.append(f"{tag}: layout 'two_column_table' but no table block")
+        if s.layout_type == LayoutType.TWO_COLUMN_TABLE and not (kinds & {"table", "chart", "diagram"}):
+            findings.append(f"{tag}: layout 'two_column_table' but no table/chart/diagram block")
         if s.layout_type == LayoutType.FIGURE_CAPTION and "figure" not in kinds:
             findings.append(f"{tag}: layout 'figure_caption' but no figure block")
 

@@ -52,6 +52,20 @@ def test_clean_deck_has_no_findings():
     assert critique_deck(_clean_slides(), _EVIDENCE) == []
 
 
+def test_chart_satisfies_two_column_table_layout():
+    from slide_ir import ChartBlock, ChartSeries
+
+    slides = [
+        SlideIR(
+            slide_id="c",
+            layout_type=LayoutType.TWO_COLUMN_TABLE,
+            title="data",
+            blocks=[ChartBlock(chart_type="bar", categories=["A", "B"], series=[ChartSeries(name="x", values=[1.0, 2.0])])],
+        )
+    ]
+    assert not any("two_column_table" in f for f in critique_deck(slides, []))  # chart counts as data block
+
+
 def test_diagram_dangling_edge_flagged():
     slides = [
         SlideIR(

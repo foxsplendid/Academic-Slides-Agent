@@ -62,6 +62,23 @@ def test_full_run_with_hard_stop_and_resume(tmp_path):
     assert _field(final, "user_approved_outline") is True
 
 
+def test_resume_has_no_msgpack_warning(tmp_path):
+    import contextlib
+    import io
+
+    from langgraph.types import Command
+
+    graph = build_graph(FakeLLM(_VALID_DECK), out_dir=tmp_path)  # default checkpointer registers our types
+    cfg = {"configurable": {"thread_id": "mp"}}
+    buf = io.StringIO()
+    with contextlib.redirect_stderr(buf):
+        graph.invoke(_init(), cfg)
+        final = graph.invoke(Command(resume={"approved": True}), cfg)
+    err = buf.getvalue()
+    assert not any(k in err for k in ("Deserializing unregistered", "Blocked deserialization"))
+    assert _field(final, "output_path")  # resume still compiled
+
+
 def test_compile_writes_run_artifacts(tmp_path):
     from langgraph.types import Command
 

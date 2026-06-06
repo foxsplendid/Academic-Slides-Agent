@@ -16,6 +16,25 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
+
+def _asa_checkpointer():
+    """A MemorySaver whose serializer registers our `slide_ir` types, so resuming a checkpoint emits
+    no 'unregistered type' warning and is not blocked by future strict-msgpack handling."""
+    import enum
+    import inspect
+
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+    from pydantic import BaseModel
+
+    from slide_ir import models as _m
+
+    allowed = [
+        obj
+        for _, obj in inspect.getmembers(_m, inspect.isclass)
+        if obj.__module__ == _m.__name__ and issubclass(obj, (BaseModel, enum.Enum))
+    ]
+    return MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=allowed))
+
 from pptx_compiler import compile_deck
 from slide_ir import Deck, GenerationState, Phase
 
@@ -109,4 +128,4 @@ def build_graph(
     builder.add_conditional_edges("critic", after_critic, {"plan": "plan", "approval": "approval"})
     builder.add_edge("approval", "compile")
     builder.add_edge("compile", END)
-    return builder.compile(checkpointer=checkpointer or MemorySaver())
+    return builder.compile(checkpointer=checkpointer or _asa_checkpointer())
