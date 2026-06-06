@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.14 |
+| **Version** | 0.1.15 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -307,8 +307,9 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
   figure `asset_id`s — and returns findings. The graph runs it **before** the Hard-Stop and
   re-plans with the findings as feedback, bounded by `max_retries` (default 2); residual findings
   still reach the human. Thresholds are module constants (`MAX_BULLETS`, `MAX_TABLE_ROWS`, …).
-- **Primary (future):** measure text bounding boxes (font metrics) before placement;
-  overflow → shrink font → paginate/spill to a continuation slide.
+- **Primary (auto-fit implemented):** the compiler estimates bullet line count for the region
+  (CJK-aware display width) and **shrinks the font to a floor** so dense text doesn't overflow
+  ("measure, then place", `blocks._fit_font`). Pagination/spill to a continuation slide is still future.
 - **Secondary (final QA only, v2):** optional VLM Critic renders the slide to image, flags
   overflow/overlap, loops back. Do not rely on VLM alone.
 - **Structural guard:** "template as constraint" — content only enters predefined boxes, so
@@ -381,3 +382,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.12 | **Parser resilience (§6.1)**: quality-gated cascade MinerU → Docling (MIT, optional) → pdfplumber that descends on thin/empty output (not only exceptions); `assess_quality` + `IngestResult.warnings` surfaced to the user pre-generation. Backups filtered from the user's tool comparison (keep MIT/Apache/arms-length; reject AGPL PyMuPDF / GPL Marker). Verified: cascade descends on a thin parse; happy path unchanged. |
 | 2026-06-06 | 0.1.13 | **Parse cache + run isolation**: content-addressed parse cache (`ingestion/cache.py`, sha256+parser; figures persisted, refs rewritten) so re-uploading the same paper skips parsing (verified **6.9s → 0.01s**, ~1000×). Each run writes `runs/<job_id>/` with `out.pptx` + `deck.json` + human-readable `deck.md` for comparing agent modes; cache under `<out_dir>/papers/`. |
 | 2026-06-06 | 0.1.14 | **Logic diagrams** (`DiagramBlock`): the LLM emits a **semantic** diagram (nodes+edges+type, **no coordinates**) and a **deterministic layout engine** (`pptx_compiler/diagram.py`, 6 types: flow/tree/cycle/comparison/pyramid/timeline) renders native rounded-rect nodes + arrow connectors — no coordinate hallucination, no VLM needed (contrast: SVG-coordinate agents need a geometry+VLM critic). Critic validates edge node-refs. Verified: planner emitted a 4-stage flow from a paper's method; 6 types render native shapes. |
+| 2026-06-06 | 0.1.15 | **Overflow auto-fit (§6.5)**: the compiler estimates bullet line count (CJK-aware) for the region and **shrinks the font to a floor** so dense academic text doesn't overflow ("measure, then place"). Pagination/spill still future. |

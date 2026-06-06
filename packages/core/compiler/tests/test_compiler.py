@@ -290,6 +290,17 @@ def test_chart_block_renders_native_chart(tmp_path):
         assert charts, f"{ctype} did not render a native chart"
 
 
+def test_bullet_font_auto_fits():
+    from pptx_compiler.blocks import _fit_font
+
+    big = int(Inches(6))
+    short_h = int(Inches(1.5))
+    sparse = _fit_font(["A", "B"], big, big)
+    dense = _fit_font(["很长很长的学术要点描述内容" * 6 for _ in range(6)], big, short_h)
+    assert sparse == 16.0  # sparse text stays at base
+    assert 10.0 <= dense < 16.0  # dense text shrinks, but not below the floor
+
+
 def test_diagram_renders_native_shapes(tmp_path):
     nodes = [DiagramNode(id=f"n{i}", label=f"L{i}") for i in range(3)]
     edges = [DiagramEdge(source="n0", target="n1"), DiagramEdge(source="n1", target="n2")]

@@ -116,3 +116,11 @@ edges — for each supported `diagram_type`.
 - **WHEN** a slide with a `diagram` block of N nodes is compiled
 - **THEN** the slide contains at least N native node shapes (and connectors for a flow's edges)
 
+### Requirement: Bullet auto-fit
+The compiler SHALL estimate whether bullet text fits its region and SHALL shrink the font size (down to
+a floor) so dense text does not overflow the slide ("measure, then place").
+
+#### Scenario: Dense bullets shrink
+- **WHEN** a slide's bullet region must hold much more text than another's
+- **THEN** its rendered font size is smaller (but not below the floor)
+

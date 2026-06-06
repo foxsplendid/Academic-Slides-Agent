@@ -7,6 +7,7 @@ reference 组会 deck style (docs/SPEC.md styling).
 
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 
@@ -65,14 +66,37 @@ def add_rich_text(paragraph, text: str, *, size, bold: bool = False) -> None:
         _set_ea(f, EA_FONT)
 
 
+_EMU_PER_PT = 12700.0
+
+
+def _display_width(text: str) -> float:
+    """CJK chars occupy ~1 em, Latin ~0.5 em — used to estimate wrapped line count."""
+    return sum(1.0 if ord(c) > 0x2E80 else 0.5 for c in text)
+
+
+def _fit_font(items: list[str], width: int, height: int, *, base: float = 16.0, floor: float = 10.0) -> float:
+    """Measure, then place: shrink the font until the bullets' estimated height fits the region."""
+    w_pt = max(width / _EMU_PER_PT, 1.0)
+    h_pt = max(height / _EMU_PER_PT, 1.0)
+    f = base
+    while f > floor:
+        per_line = max(w_pt / f, 1.0)  # ~em units that fit on one line at size f
+        lines = sum(max(1, math.ceil(_display_width("• " + it) / per_line)) for it in items)
+        if lines * f * 1.28 <= h_pt:  # 1.28 ≈ line spacing
+            break
+        f -= 1.0
+    return max(f, floor)
+
+
 def render_bullets(slide, block: BulletBlock, region: Region):
     left, top, width, height = region
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
     tf.word_wrap = True
+    size = Pt(_fit_font(block.items, width, height))  # auto-shrink dense text to avoid overflow
     for i, item in enumerate(block.items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        add_rich_text(p, f"• {item}", size=Pt(16))
+        add_rich_text(p, f"• {item}", size=size)
     return box
 
 
