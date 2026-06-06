@@ -77,5 +77,14 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
                     findings.append(
                         f"{tag}: figure references unknown asset_id '{b.asset_id}'"
                     )
+            elif b.type == "diagram":
+                node_ids = {nd.id for nd in b.nodes}
+                for e in b.edges:
+                    if e.source not in node_ids or e.target not in node_ids:
+                        findings.append(
+                            f"{tag}: diagram edge references undefined node "
+                            f"('{e.source}'->'{e.target}')"
+                        )
+                        break
 
     return findings

@@ -80,8 +80,34 @@ class ChartBlock(_BlockBase):
     title: Optional[str] = None
 
 
+class DiagramNode(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+
+
+class DiagramEdge(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(min_length=1)  # a node id
+    target: str = Field(min_length=1)  # a node id
+    label: Optional[str] = None
+
+
+class DiagramBlock(_BlockBase):
+    """A SEMANTIC logic diagram — nodes + edges + type, NO coordinates. The deterministic compiler
+    computes the layout, so the LLM never emits geometry (no coordinate hallucination)."""
+
+    type: Literal["diagram"] = "diagram"
+    diagram_type: Literal["flow", "tree", "cycle", "comparison", "pyramid", "timeline"] = "flow"
+    nodes: list[DiagramNode] = Field(min_length=1)
+    edges: list[DiagramEdge] = Field(default_factory=list)
+    title: Optional[str] = None
+
+
 Block = Annotated[
-    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock, ChartBlock],
+    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock, ChartBlock, DiagramBlock],
     Field(discriminator="type"),
 ]
 

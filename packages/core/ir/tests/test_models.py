@@ -229,3 +229,42 @@ def test_chart_block_invalid_rejected():
                 ],
             }
         )
+
+
+# --- add-diagram-block -------------------------------------------------------
+
+
+def test_diagram_block_valid():
+    deck = from_llm_output(
+        {
+            "deck_id": "d",
+            "slides": [
+                {
+                    "slide_id": "s1",
+                    "layout_type": "bullet_evidence",
+                    "title": "x",
+                    "blocks": [
+                        {
+                            "type": "diagram",
+                            "diagram_type": "flow",
+                            "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+                            "edges": [{"source": "a", "target": "b"}],
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    b = deck.slides[0].blocks[0]
+    assert b.type == "diagram" and b.diagram_type == "flow" and len(b.nodes) == 2
+
+
+def test_diagram_block_invalid_rejected():
+    for bad in (
+        {"type": "diagram", "diagram_type": "galaxy", "nodes": [{"id": "a", "label": "A"}]},  # unknown type
+        {"type": "diagram", "diagram_type": "flow", "nodes": []},  # empty nodes
+    ):
+        with pytest.raises(IRBoundaryError):
+            from_llm_output(
+                {"deck_id": "d", "slides": [{"slide_id": "s1", "layout_type": "bullet_evidence", "title": "x", "blocks": [bad]}]}
+            )

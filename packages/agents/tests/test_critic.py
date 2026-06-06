@@ -12,6 +12,9 @@ from langgraph.types import Command
 
 from slide_ir import (
     BulletBlock,
+    DiagramBlock,
+    DiagramEdge,
+    DiagramNode,
     EvidenceAsset,
     FigureBlock,
     GenerationState,
@@ -47,6 +50,24 @@ def _clean_slides() -> list[SlideIR]:
 
 def test_clean_deck_has_no_findings():
     assert critique_deck(_clean_slides(), _EVIDENCE) == []
+
+
+def test_diagram_dangling_edge_flagged():
+    slides = [
+        SlideIR(
+            slide_id="d1",
+            layout_type=LayoutType.BULLET_EVIDENCE,
+            title="x",
+            blocks=[
+                DiagramBlock(
+                    diagram_type="flow",
+                    nodes=[DiagramNode(id="a", label="A")],
+                    edges=[DiagramEdge(source="a", target="ghost")],
+                )
+            ],
+        )
+    ]
+    assert any("undefined node" in f for f in critique_deck(slides, []))
 
 
 def test_each_defect_is_flagged():

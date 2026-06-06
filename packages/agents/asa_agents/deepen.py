@@ -46,10 +46,14 @@ block 之一:
   {"type":"table","columns":["..."],"rows":[["..."]]}
   {"type":"formula","latex":"..."}
   {"type":"chart","chart_type":"bar|line|scatter|pie","categories":["..."],"series":[{"name":"...","values":[1,2,3]}],"title":"..."}
+  {"type":"diagram","diagram_type":"flow|tree|cycle|comparison|pyramid|timeline","nodes":[{"id":"n1","label":"..."}],"edges":[{"source":"n1","target":"n2","label":"..."}],"title":"..."}
 要求:
 - **图表(chart)**:若本页证据里有一组可比较的数值(≥3 个类别/时间点/分组的指标,如各元素重要性、随时间的指标),\
 **优先输出 chart block 用原生图表(柱/线/散点)可视化**,而不是仅用文字罗列;`series.values` 与 `categories` 一一对应,\
 scatter 用每个 series 的 `x` 与 `values` 配对。**所有数字必须直接来自证据,严禁编造或估算**;证据里没有具体数值就不要出图表。
+- **逻辑图件(diagram)**:若本页讲的是一个**流程/步骤、方法对比、循环、层级、金字塔、时间线**等逻辑关系,\
+**优先输出 diagram block** 用原生图形表达,而不是堆 bullet。你只给**语义结构**(`nodes` 节点 + `edges` 有向边,`id` 自取、`label` 简短),\
+**不要给坐标**(版面由系统自动排)。flow/timeline 的 edges 可省略(按 nodes 顺序连)。**节点与关系必须来自论文,严禁编造**。
 - bullet 给 **4-6 条有实质**的要点(具体到方法、数值、机制、结论),末条以 "→ " 开头给"这说明了什么"的解读
 - speaker_notes:讲者照着念的口播稿
 - 术语/符号/方法名/引用保持原文(Random Forest、SHAP、O₂、r=0.938、Lyons et al., 2014 等)

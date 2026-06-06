@@ -17,6 +17,9 @@ from slide_ir import (
     ChartBlock,
     ChartSeries,
     Deck,
+    DiagramBlock,
+    DiagramEdge,
+    DiagramNode,
     FigureBlock,
     FormulaBlock,
     LayoutType,
@@ -285,6 +288,44 @@ def test_chart_block_renders_native_chart(tmp_path):
         slide = Presentation(str(out)).slides[0]
         charts = [sh for sh in slide.shapes if sh.has_chart]
         assert charts, f"{ctype} did not render a native chart"
+
+
+def test_diagram_renders_native_shapes(tmp_path):
+    nodes = [DiagramNode(id=f"n{i}", label=f"L{i}") for i in range(3)]
+    edges = [DiagramEdge(source="n0", target="n1"), DiagramEdge(source="n1", target="n2")]
+    for dt in ("flow", "comparison", "cycle", "tree", "pyramid", "timeline"):
+        deck = Deck(
+            deck_id="d",
+            slides=[
+                SlideIR(
+                    slide_id="s",
+                    layout_type=LayoutType.BULLET_EVIDENCE,
+                    title="t",
+                    blocks=[DiagramBlock(diagram_type=dt, nodes=nodes, edges=(edges if dt in ("flow", "tree", "cycle") else []))],
+                )
+            ],
+        )
+        prs = Presentation(str(compile_deck(deck, tmp_path / f"{dt}.pptx")))
+        autoshapes = [sh for sh in prs.slides[0].shapes if sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE]
+        assert len(autoshapes) >= 3, f"{dt}: expected >=3 node shapes, got {len(autoshapes)}"
+
+
+def test_flow_diagram_has_connectors(tmp_path):
+    nodes = [DiagramNode(id=f"n{i}", label=f"L{i}") for i in range(3)]
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s",
+                layout_type=LayoutType.BULLET_EVIDENCE,
+                title="t",
+                blocks=[DiagramBlock(diagram_type="flow", nodes=nodes)],  # sequential edges inferred
+            )
+        ],
+    )
+    prs = Presentation(str(compile_deck(deck, tmp_path / "flow.pptx")))
+    shapes = list(prs.slides[0].shapes)
+    assert len(shapes) > 3  # 3 nodes + connectors
 
 
 def test_unresolved_figure_falls_back_to_placeholder(tmp_path):

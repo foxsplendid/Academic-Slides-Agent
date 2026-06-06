@@ -50,7 +50,8 @@ SYSTEM_PROMPT = """你是一名科研组会/学术报告的幻灯片策划专家
   {"type": "formula", "latex": "..."}
   {"type": "figure", "asset_id": "<必须在可用列表中>", "caption": "..."}
   {"type": "chart", "chart_type": "bar|line|scatter|pie", "categories": ["..."], "series": [{"name": "...", "values": [1, 2]}], "title": "..."}
-图表(chart)数据必须来自证据,严禁编造数字;没有合适数据就不要出图表。
+  {"type": "diagram", "diagram_type": "flow|tree|cycle|comparison|pyramid|timeline", "nodes": [{"id": "n1", "label": "..."}], "edges": [{"source": "n1", "target": "n2"}], "title": "..."}
+图表(chart)数据、图件(diagram)的节点与关系都必须来自证据,严禁编造;diagram 只给语义结构不给坐标。
 必填:顶层 "deck_id";每页 "slide_id" 与 "layout_type"。不要添加 schema 之外的字段(如 "content"/"body")。\
 标题页/章节页可用 "blocks": []。
 

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.13 |
+| **Version** | 0.1.14 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -144,8 +144,15 @@ class ChartBlock(BaseModel):                  # native, editable PowerPoint char
     series: list[ChartSeries]                 # {name, values, x?}  (data must come from evidence)
     title: Optional[str] = None
 
+class DiagramBlock(BaseModel):                 # SEMANTIC logic diagram (NO coordinates)
+    type: Literal["diagram"] = "diagram"
+    diagram_type: Literal["flow","tree","cycle","comparison","pyramid","timeline"] = "flow"
+    nodes: list[DiagramNode]                   # {id, label}
+    edges: list[DiagramEdge] = []              # {source, target, label?} (from the paper)
+    title: Optional[str] = None
+
 Block = Annotated[
-    FormulaBlock | TableBlock | BulletBlock | FigureBlock | ChartBlock,
+    FormulaBlock | TableBlock | BulletBlock | FigureBlock | ChartBlock | DiagramBlock,
     Field(discriminator="type"),
 ]
 
@@ -373,3 +380,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.11 | **Supplementary inputs reach generation**: skeleton plans gain `table_refs`; per-slide expansion is fed the referenced tables' actual data (`serialize_table`, high row cap + remainder note), so supplementary Excel/CSV data drives charts/discussion. Zip ingestion forwards the workspace to members; upload returns per-type counts; the web picker is supplementary-aware. Verified: a synthetic supp `.xlsx` → faithful native bar chart of all 6 rows. |
 | 2026-06-06 | 0.1.12 | **Parser resilience (§6.1)**: quality-gated cascade MinerU → Docling (MIT, optional) → pdfplumber that descends on thin/empty output (not only exceptions); `assess_quality` + `IngestResult.warnings` surfaced to the user pre-generation. Backups filtered from the user's tool comparison (keep MIT/Apache/arms-length; reject AGPL PyMuPDF / GPL Marker). Verified: cascade descends on a thin parse; happy path unchanged. |
 | 2026-06-06 | 0.1.13 | **Parse cache + run isolation**: content-addressed parse cache (`ingestion/cache.py`, sha256+parser; figures persisted, refs rewritten) so re-uploading the same paper skips parsing (verified **6.9s → 0.01s**, ~1000×). Each run writes `runs/<job_id>/` with `out.pptx` + `deck.json` + human-readable `deck.md` for comparing agent modes; cache under `<out_dir>/papers/`. |
+| 2026-06-06 | 0.1.14 | **Logic diagrams** (`DiagramBlock`): the LLM emits a **semantic** diagram (nodes+edges+type, **no coordinates**) and a **deterministic layout engine** (`pptx_compiler/diagram.py`, 6 types: flow/tree/cycle/comparison/pyramid/timeline) renders native rounded-rect nodes + arrow connectors — no coordinate hallucination, no VLM needed (contrast: SVG-coordinate agents need a geometry+VLM critic). Critic validates edge node-refs. Verified: planner emitted a 4-stage flow from a paper's method; 6 types render native shapes. |

@@ -116,6 +116,117 @@
       "title": "ChartSeries",
       "type": "object"
     },
+    "DiagramBlock": {
+      "additionalProperties": false,
+      "description": "A SEMANTIC logic diagram — nodes + edges + type, NO coordinates. The deterministic compiler\ncomputes the layout, so the LLM never emits geometry (no coordinate hallucination).",
+      "properties": {
+        "type": {
+          "const": "diagram",
+          "default": "diagram",
+          "title": "Type",
+          "type": "string"
+        },
+        "diagram_type": {
+          "default": "flow",
+          "enum": [
+            "flow",
+            "tree",
+            "cycle",
+            "comparison",
+            "pyramid",
+            "timeline"
+          ],
+          "title": "Diagram Type",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/DiagramNode"
+          },
+          "minItems": 1,
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/DiagramEdge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "nodes"
+      ],
+      "title": "DiagramBlock",
+      "type": "object"
+    },
+    "DiagramEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "minLength": 1,
+          "title": "Target",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ],
+      "title": "DiagramEdge",
+      "type": "object"
+    },
+    "DiagramNode": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "DiagramNode",
+      "type": "object"
+    },
     "FigureBlock": {
       "additionalProperties": false,
       "properties": {
@@ -228,6 +339,7 @@
               "mapping": {
                 "bullets": "#/$defs/BulletBlock",
                 "chart": "#/$defs/ChartBlock",
+                "diagram": "#/$defs/DiagramBlock",
                 "figure": "#/$defs/FigureBlock",
                 "formula": "#/$defs/FormulaBlock",
                 "table": "#/$defs/TableBlock"
@@ -249,6 +361,9 @@
               },
               {
                 "$ref": "#/$defs/ChartBlock"
+              },
+              {
+                "$ref": "#/$defs/DiagramBlock"
               }
             ]
           },
