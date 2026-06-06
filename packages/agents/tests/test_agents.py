@@ -298,3 +298,26 @@ def test_expand_receives_referenced_table_data():
     plan = {"slide_id": "s1", "layout_type": "bullet_evidence", "title": "t", "focus": "f", "evidence_pages": [], "table_refs": [0]}
     _expand_slide(plan, {}, {}, _Cap(), tables)
     assert "Mo" in captured["p"] and "0.42" in captured["p"]  # the table data reached the prompt
+
+
+# --- add-parse-cache: deck markdown ------------------------------------------
+
+
+def test_deck_to_markdown_renders():
+    from asa_agents import deck_to_markdown
+    from slide_ir import BulletBlock, Deck, LayoutType, SlideIR
+
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s1",
+                layout_type=LayoutType.BULLET_EVIDENCE,
+                title="标题",
+                blocks=[BulletBlock(items=["a", "b"])],
+                speaker_notes="讲一下",
+            )
+        ],
+    )
+    md = deck_to_markdown(deck)
+    assert "## 1. 标题" in md and "- a" in md and "讲稿: 讲一下" in md

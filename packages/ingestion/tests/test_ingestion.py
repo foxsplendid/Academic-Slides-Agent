@@ -59,6 +59,31 @@ def test_provenance_records_source_and_locator(tmp_path):
     assert asset.locator == {"sheet": "Data"}
 
 
+# --- add-parse-cache ---------------------------------------------------------
+
+
+def test_parse_cache_hits_on_second_call(tmp_path):
+    from ingestion.cache import cached_pdf
+    from ingestion.models import IngestResult
+    from slide_ir import EvidenceAsset
+
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake bytes")
+    calls = {"n": 0}
+
+    def parse(_p):
+        calls["n"] += 1
+        return IngestResult(
+            assets=[EvidenceAsset(asset_id="x", kind="section_text", content_ref="hello", source="a.pdf", locator={"page": 1})]
+        )
+
+    cache = tmp_path / "cache"
+    r1 = cached_pdf(pdf, parser_key="auto", cache_dir=cache, parse_fn=parse)
+    r2 = cached_pdf(pdf, parser_key="auto", cache_dir=cache, parse_fn=parse)
+    assert calls["n"] == 1  # second call was a cache hit
+    assert r1.assets[0].content_ref == "hello" and r2.assets[0].content_ref == "hello"
+
+
 # --- add-parser-resilience: quality gating + cascade -------------------------
 
 
@@ -113,9 +138,9 @@ def test_zip_forwards_workspace(tmp_path, monkeypatch):
     seen: list = []
     real = router.ingest_path
 
-    def spy(path, *, workspace=None):
+    def spy(path, *, workspace=None, cache_dir=None):
         seen.append(workspace)
-        return real(path, workspace=workspace)
+        return real(path, workspace=workspace, cache_dir=cache_dir)
 
     monkeypatch.setattr(router, "ingest_path", spy)
     csvp = tmp_path / "a.csv"

@@ -22,6 +22,7 @@ from slide_ir import Deck, GenerationState, Phase
 from .critic import critique_deck
 from .llm import LLM
 from .outline import build_outline
+from .render_md import deck_to_markdown
 
 
 def build_graph(
@@ -85,15 +86,17 @@ def build_graph(
         return {"user_approved_outline": True, "user_outline_edits": edits, "phase": Phase.MAPPING}
 
     def compile_slides(state: GenerationState) -> dict:
-        out_dir_path.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir_path / f"{state.job_id}.pptx"
+        run_dir = out_dir_path / "runs" / state.job_id  # per-run isolation (compare agent modes)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        out_path = run_dir / "out.pptx"
+        deck = Deck(deck_id=state.job_id, slides=state.slides)
         resolver = {a.asset_id: a.content_ref for a in state.evidence if a.kind == "figure"}
-        compile_deck(
-            Deck(deck_id=state.job_id, slides=state.slides),
-            out_path,
-            formula_renderer=formula_renderer,
-            asset_resolver=resolver,
-        )
+        compile_deck(deck, out_path, formula_renderer=formula_renderer, asset_resolver=resolver)
+        try:  # human-readable + machine artifacts for diffing runs (best-effort)
+            (run_dir / "deck.json").write_text(deck.model_dump_json(indent=2), encoding="utf-8")
+            (run_dir / "deck.md").write_text(deck_to_markdown(deck), encoding="utf-8")
+        except Exception:
+            pass
         return {"output_path": str(out_path), "phase": Phase.DONE}
 
     builder = StateGraph(GenerationState)

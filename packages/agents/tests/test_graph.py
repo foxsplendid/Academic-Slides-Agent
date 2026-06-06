@@ -62,6 +62,19 @@ def test_full_run_with_hard_stop_and_resume(tmp_path):
     assert _field(final, "user_approved_outline") is True
 
 
+def test_compile_writes_run_artifacts(tmp_path):
+    from langgraph.types import Command
+
+    graph = build_graph(FakeLLM(_VALID_DECK), out_dir=tmp_path)
+    cfg = {"configurable": {"thread_id": "tr"}}
+    graph.invoke(_init(), cfg)
+    graph.invoke(Command(resume={"approved": True}), cfg)
+    run_dir = Path(tmp_path) / "runs" / "j1"
+    assert (run_dir / "out.pptx").exists()
+    assert (run_dir / "deck.md").exists() and (run_dir / "deck.json").exists()
+    assert "##" in (run_dir / "deck.md").read_text(encoding="utf-8")  # has slide headings
+
+
 def test_streaming_emits_node_updates(tmp_path):
     graph = build_graph(FakeLLM(_VALID_DECK), out_dir=tmp_path)
     cfg = {"configurable": {"thread_id": "t2"}}

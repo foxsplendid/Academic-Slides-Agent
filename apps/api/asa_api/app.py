@@ -86,7 +86,8 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", p
     def create_job(req: CreateJob):
         job_id = req.job_id or uuid.uuid4().hex[:12]
         workspace = Path(out_dir) / "assets" / job_id
-        result = ingest(*req.inputs, workspace=workspace) if req.inputs else None
+        cache = Path(out_dir) / "papers"  # shared content-addressed parse cache
+        result = ingest(*req.inputs, workspace=workspace, cache_dir=cache) if req.inputs else None
         state = GenerationState(
             job_id=job_id,
             evidence=(result.assets if result else []),
@@ -105,7 +106,8 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", p
             dest = job_dir / (upload.filename or "upload.bin")
             dest.write_bytes(await upload.read())
             paths.append(str(dest))
-        result = ingest(*paths, workspace=job_dir) if paths else None
+        cache = Path(out_dir) / "papers"  # shared content-addressed parse cache (dedup re-uploads)
+        result = ingest(*paths, workspace=job_dir, cache_dir=cache) if paths else None
         assets = result.assets if result else []
         state = GenerationState(
             job_id=job_id,

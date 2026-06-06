@@ -52,7 +52,24 @@ def _pdf_backends(forced: Optional[str], workspace: Optional[str | Path]) -> lis
     return order
 
 
-def _ingest_pdf(path: Path, workspace: Optional[str | Path]) -> IngestResult:
+def _ingest_pdf(
+    path: Path, workspace: Optional[str | Path], cache_dir: Optional[str | Path] = None
+) -> IngestResult:
+    """Quality-gated cascade (cached). See `_ingest_pdf_uncached`."""
+    if cache_dir is not None:
+        from .cache import cached_pdf
+
+        parser_key = os.environ.get("ASA_PDF_PARSER", "auto").lower()
+        return cached_pdf(
+            path,
+            parser_key=parser_key,
+            cache_dir=cache_dir,
+            parse_fn=lambda p: _ingest_pdf_uncached(p, workspace),
+        )
+    return _ingest_pdf_uncached(path, workspace)
+
+
+def _ingest_pdf_uncached(path: Path, workspace: Optional[str | Path]) -> IngestResult:
     """Quality-gated cascade: MinerU → Docling (if installed) → pdfplumber. Descend when a parse is
     inadequate (not only on exceptions); keep the best result if none is adequate.
 
@@ -83,7 +100,12 @@ def _ingest_pdf(path: Path, workspace: Optional[str | Path]) -> IngestResult:
     return best
 
 
-def ingest_path(path: str | Path, *, workspace: Optional[str | Path] = None) -> IngestResult:
+def ingest_path(
+    path: str | Path,
+    *,
+    workspace: Optional[str | Path] = None,
+    cache_dir: Optional[str | Path] = None,
+) -> IngestResult:
     path = Path(path)
     ext = path.suffix.lower()
     if ext in (".xlsx", ".xlsm"):
@@ -91,11 +113,11 @@ def ingest_path(path: str | Path, *, workspace: Optional[str | Path] = None) -> 
     if ext == ".csv":
         return ingest_csv(path)
     if ext == ".pdf":
-        return _ingest_pdf(path, workspace)
+        return _ingest_pdf(path, workspace, cache_dir)
     if ext == ".zip":
         from .archive import ingest_zip
 
-        return ingest_zip(path, workspace=workspace)
+        return ingest_zip(path, workspace=workspace, cache_dir=cache_dir)
     if ext in _IMAGE_EXT:
         result = IngestResult()
         result.assets.append(
@@ -105,8 +127,12 @@ def ingest_path(path: str | Path, *, workspace: Optional[str | Path] = None) -> 
     return IngestResult()  # unknown type -> skipped (no raise)
 
 
-def ingest(*paths: str | Path, workspace: Optional[str | Path] = None) -> IngestResult:
+def ingest(
+    *paths: str | Path,
+    workspace: Optional[str | Path] = None,
+    cache_dir: Optional[str | Path] = None,
+) -> IngestResult:
     result = IngestResult()
     for path in paths:
-        result.merge(ingest_path(Path(path), workspace=workspace))
+        result.merge(ingest_path(Path(path), workspace=workspace, cache_dir=cache_dir))
     return result
