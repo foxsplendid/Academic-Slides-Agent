@@ -13,13 +13,19 @@ export interface Ingested {
   text_pages: number;
 }
 
-export async function uploadJob(files: File[]): Promise<{ jobId: string; ingested: Ingested }> {
+export async function uploadJob(
+  files: File[],
+): Promise<{ jobId: string; ingested: Ingested; warnings: string[] }> {
   const form = new FormData();
   for (const f of files) form.append("files", f);
   const res = await fetch(`${API_BASE}/jobs/upload`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`upload failed: ${res.status}`);
   const data = await res.json();
-  return { jobId: data.job_id as string, ingested: data.ingested as Ingested };
+  return {
+    jobId: data.job_id as string,
+    ingested: data.ingested as Ingested,
+    warnings: (data.warnings as string[]) ?? [],
+  };
 }
 
 export interface Progress {

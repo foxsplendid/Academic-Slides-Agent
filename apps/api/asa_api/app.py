@@ -122,6 +122,7 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", p
                 "figures": sum(1 for a in assets if a.kind == "figure"),
                 "text_pages": sum(1 for a in assets if a.kind == "section_text"),
             },
+            "warnings": (result.warnings if result else []),
         }
 
     @app.get("/jobs/{job_id}/stream")

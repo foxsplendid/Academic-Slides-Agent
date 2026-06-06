@@ -59,6 +59,54 @@ def test_provenance_records_source_and_locator(tmp_path):
     assert asset.locator == {"sheet": "Data"}
 
 
+# --- add-parser-resilience: quality gating + cascade -------------------------
+
+
+def test_assess_quality_flags_thin_parse():
+    from ingestion import assess_quality
+    from ingestion.models import IngestResult
+    from slide_ir import EvidenceAsset
+
+    thin = IngestResult(
+        assets=[EvidenceAsset(asset_id="p1", kind="section_text", content_ref="short", source="x.pdf", locator={"page": 1})]
+    )
+    q = assess_quality(thin)
+    assert q["adequate"] is False and q["warnings"]
+
+    good = IngestResult(
+        assets=[EvidenceAsset(asset_id="p1", kind="section_text", content_ref="x" * 1000, source="x.pdf", locator={"page": 1})]
+    )
+    assert assess_quality(good)["adequate"] is True
+
+
+def test_cascade_descends_on_thin_parse(tmp_path, monkeypatch):
+    import ingestion.router as router
+    from ingestion.models import IngestResult
+    from slide_ir import EvidenceAsset
+
+    def thin(_p):
+        return IngestResult(assets=[EvidenceAsset(asset_id="t", kind="section_text", content_ref="tiny", source="x.pdf", locator={"page": 1})])
+
+    def good(_p):
+        return IngestResult(assets=[EvidenceAsset(asset_id="g", kind="section_text", content_ref="y" * 1000, source="x.pdf", locator={"page": 1})])
+
+    monkeypatch.setattr(router, "_pdf_backends", lambda forced, ws: [("mineru", thin), ("pdfplumber", good)])
+    res = router._ingest_pdf(tmp_path / "x.pdf", tmp_path)
+    assert any(len(a.content_ref or "") >= 1000 for a in res.assets)  # took the good (adequate) one
+    assert any("降级" in w for w in res.warnings)
+
+
+def test_docling_skipped_when_unavailable(monkeypatch):
+    import ingestion.router as router
+    from ingestion import docling_available
+
+    monkeypatch.delenv("MINERU_API_KEY", raising=False)
+    names = [n for n, _ in router._pdf_backends(None, "/tmp/ws")]
+    assert "pdfplumber" in names
+    if not docling_available():  # optional plugin: absent -> not in the cascade
+        assert "docling" not in names
+
+
 def test_zip_forwards_workspace(tmp_path, monkeypatch):
     import ingestion.router as router
 

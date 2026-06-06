@@ -15,6 +15,7 @@ export function App() {
   const [prog, setProg] = useState<Progress | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [ingested, setIngested] = useState<Ingested | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [log, setLog] = useState<string[]>([]);
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +35,14 @@ export function App() {
     setOutline([]);
     setProg(null);
     setIngested(null);
+    setWarnings([]);
     setStage("parse");
     setPhase("uploading");
     try {
-      const { jobId: id, ingested: ing } = await uploadJob(files);
+      const { jobId: id, ingested: ing, warnings: warn } = await uploadJob(files);
       setJobId(id);
       setIngested(ing);
+      setWarnings(warn);
       setStage("outline");
       setPhase("streaming");
       streamJob(
@@ -100,6 +103,11 @@ export function App() {
             {ingested.figures} 张图
           </p>
         )}
+        {warnings.map((w, i) => (
+          <p className="warn" key={i}>
+            &#9888; {w}
+          </p>
+        ))}
       </section>
 
       {active >= 0 && (

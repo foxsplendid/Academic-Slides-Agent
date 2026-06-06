@@ -17,6 +17,7 @@ class IngestResult(BaseModel):
 
     assets: list[EvidenceAsset] = Field(default_factory=list)
     tables: list[TableBlock] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)  # parse-health notes (thin/scanned/…)
 
     def merge(self, other: "IngestResult") -> "IngestResult":
         """Fold `other` into this result, re-basing ``table:<index>`` references."""
@@ -30,6 +31,7 @@ class IngestResult(BaseModel):
                     pass
         self.assets.extend(other.assets)
         self.tables.extend(other.tables)
+        self.warnings.extend(other.warnings)
         return self
 
 

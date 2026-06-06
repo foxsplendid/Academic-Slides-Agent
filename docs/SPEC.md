@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.11 |
+| **Version** | 0.1.12 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -260,11 +260,14 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
 - **PDF tables (best-effort only):** `pdfplumber` (MIT) for ruled tables; low-quality tables
   (no data rows / <2 cols / mostly auto-named headers) are dropped. Two-column pages are
   extracted column-by-column (gutter crop) to preserve reading order.
-- **High-fidelity backend (implemented): MinerU cloud API.** When `MINERU_API_KEY` is set (+ a
-  workspace), PDFs are parsed via `mineru.net/api/v4` (`ingestion/mineru.py`) — clean reading-order
-  text, LaTeX formulas, HTML tables, and precise figure crops (type `chart`) with captions. Called as
-  an **arms-length HTTP service** (no linking → license-clean for our Apache code). `ASA_PDF_PARSER`
-  = `auto|mineru|pdfplumber`; failures degrade to pdfplumber.
+- **Quality-gated parser cascade (implemented).** PDFs go through ordered backends and **descend on
+  poor output, not only on exceptions** (`assess_quality` scores text/pages/figures/tables):
+  **MinerU** cloud API (Tier-1, `mineru.net/api/v4`, clean reading-order text + LaTeX + HTML tables +
+  precise figure crops) → **Docling** (MIT, Tier-2, optional plugin, used only if installed) →
+  **pdfplumber** (MIT, Tier-3, always available). All license-clean (arms-length API / MIT / MIT);
+  **AGPL PyMuPDF and GPL Marker are forbidden.** `ASA_PDF_PARSER=auto|mineru|docling|pdfplumber`
+  forces a single backend. Thin/scanned parses raise `IngestResult.warnings`, surfaced to the user
+  pre-generation.
 - **PDF figures (pdfplumber fallback):** hard-science figures are usually *vector*, so we **render**
   caption-anchored regions (`Fig. N` band) with `pypdfium2` → PNG → `figure` Evidence assets
   (`ingestion/figures.py`). The compiler resolves a figure block's `asset_id` to the rendered PNG
@@ -368,3 +371,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-04 | 0.1.9 | **Parallel generation + live progress**: two-stage builder expands slides concurrently (thread pool, serial fallback on failure) with a `progress` callback; the graph `plan` node forwards it via LangGraph's custom stream writer; the SSE endpoint streams `progress` events; the web UI shows a phase stepper + live N/total slide counter. Verified live on Zhang 2026: `skeleton→slide 1..10→critic→awaiting_approval`. |
 | 2026-06-04 | 0.1.10 | **Data charts**: new `ChartBlock` (bar/line/scatter/pie) in the locked IR vocabulary → **native, editable** python-pptx charts (CategoryChartData / XyChartData). Planner emits charts **only from evidence data (no fabrication)**. Verified: two-stage emitted 2 bar charts from real SHAP values, compiled as native charts. |
 | 2026-06-06 | 0.1.11 | **Supplementary inputs reach generation**: skeleton plans gain `table_refs`; per-slide expansion is fed the referenced tables' actual data (`serialize_table`, high row cap + remainder note), so supplementary Excel/CSV data drives charts/discussion. Zip ingestion forwards the workspace to members; upload returns per-type counts; the web picker is supplementary-aware. Verified: a synthetic supp `.xlsx` → faithful native bar chart of all 6 rows. |
+| 2026-06-06 | 0.1.12 | **Parser resilience (§6.1)**: quality-gated cascade MinerU → Docling (MIT, optional) → pdfplumber that descends on thin/empty output (not only exceptions); `assess_quality` + `IngestResult.warnings` surfaced to the user pre-generation. Backups filtered from the user's tool comparison (keep MIT/Apache/arms-length; reject AGPL PyMuPDF / GPL Marker). Verified: cascade descends on a thin parse; happy path unchanged. |

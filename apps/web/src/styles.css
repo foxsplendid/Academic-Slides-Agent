@@ -121,3 +121,12 @@ button:disabled {
 .error {
   color: #b00020;
 }
+.warn {
+  color: #9a6700;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.88rem;
+  margin: 0.4rem 0 0;
+}
