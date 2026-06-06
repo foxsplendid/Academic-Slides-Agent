@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.17 |
+| **Version** | 0.1.18 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -285,12 +285,15 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
 - **v1 (shipped):** LaTeX → **high-DPI PNG** via matplotlib `mathtext` (pure-Python, in-process,
   BSD; privacy-friendly, embeds directly through python-pptx `add_picture`). Unparseable input
   returns `None` → compiler text fallback. Lives behind the injectable `FormulaRenderer` interface.
-- **v1.5 (enhancement):** higher-fidelity backend — MathJax → SVG/PNG (covers `mhchem` chemistry,
-  complex constructs) behind the **same** interface; swap in without touching the compiler.
+- **v1.5 (shipped): MathJax(+mhchem) Node sidecar.** `AutoFormulaRenderer` tiers per formula —
+  simple math → matplotlib (fast, no Node); advanced (`\ce{}` chemistry, matrices, alignment) →
+  **MathJax → SVG → resvg PNG** via an **arms-length Node subprocess** (`formula/node/sidecar.js`;
+  MathJax Apache-2.0 + resvg MPL-2.0, neither linked). Optional: enabled only when Node + the sidecar
+  `node_modules` are present (`npm install`); else falls back. Behind the same `FormulaRenderer`.
 - **v2 (enhancement):** LaTeX → MathML → **OMML** (`MML2OMML.XSL` XSLT) → native editable
   PowerPoint equation; auto-fallback to image on low-confidence conversion.
-- **Regression set:** isotopes, subscripts, fractions, Greek, sums, roots render via matplotlib;
-  `mhchem`/matrices fall back to text today and are covered by the v1.5 MathJax backend.
+- **Regression set:** isotopes, subscripts, fractions, Greek, sums, roots via matplotlib;
+  `mhchem`/matrices now render via the MathJax tier (verified `\ce{2H2 + O2 -> 2H2O}`, `pmatrix`).
 
 ### 6.3 Tables (`packages/core/tables/`)
 - Normalize extracted/structured data → `TableBlock`; preserve significant figures & alignment.
@@ -385,3 +388,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.15 | **Overflow auto-fit (§6.5)**: the compiler estimates bullet line count (CJK-aware) for the region and **shrinks the font to a floor** so dense academic text doesn't overflow ("measure, then place"). Pagination/spill still future. |
 | 2026-06-06 | 0.1.16 | **Enhancement batch 1**: critic's `two_column_table` accepts table/chart/diagram (no more chart/diagram false-flags); default checkpointer registers `slide_ir` types so resume is msgpack-warning-free **and** future-strict-safe (verified 0 warnings, resume intact); the per-slide "→ interpretation" bullet is now mandatory in the expand prompt. |
 | 2026-06-06 | 0.1.17 | **Enhancement batch 2 — incremental critic retry**: on a retry the two-stage builder repairs **only the flagged slides** (focused fix-this-slide call, prior topic/evidence preserved) and keeps the rest verbatim — no skeleton call, no re-expanding good slides. Verified: a one-slide defect makes exactly one LLM call instead of N+1. |
+| 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |

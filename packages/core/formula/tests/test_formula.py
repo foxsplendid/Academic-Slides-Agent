@@ -74,3 +74,49 @@ def test_compiler_embeds_picture(tmp_path):
     out = compile_deck(deck, tmp_path / "o.pptx", formula_renderer=_renderer(tmp_path))
     slide = Presentation(str(out)).slides[0]
     assert any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)
+
+
+# --- enhance-batch3-formula: MathJax tier ------------------------------------
+
+
+def test_is_advanced_detection():
+    from formula_render import is_advanced
+
+    assert is_advanced(r"\ce{2H2 + O2 -> 2H2O}")
+    assert is_advanced(r"\begin{pmatrix} a & b \ c & d \end{pmatrix}")
+    assert not is_advanced("x^2 + y^2")
+    assert not is_advanced(r"\frac{a}{b}")
+
+
+def test_auto_routes_advanced_to_mathjax(tmp_path):
+    from formula_render import AutoFormulaRenderer
+
+    calls = {"adv": 0, "simple": 0}
+
+    class _Adv:
+        def to_image(self, latex):
+            calls["adv"] += 1
+            return tmp_path / "a.png"
+
+    class _Simple:
+        def to_image(self, latex):
+            calls["simple"] += 1
+            return tmp_path / "s.png"
+
+    (tmp_path / "a.png").write_bytes(b"x")
+    (tmp_path / "s.png").write_bytes(b"x")
+    r = AutoFormulaRenderer(simple=_Simple(), advanced=_Adv())
+    r.to_image(r"\ce{H2O}")  # advanced -> mathjax
+    r.to_image("x^2")  # simple -> matplotlib
+    assert calls["adv"] == 1 and calls["simple"] == 1
+
+
+def test_mathjax_renders_chemistry_if_available(tmp_path):
+    import pytest
+
+    from formula_render import MathJaxFormulaRenderer
+
+    if not MathJaxFormulaRenderer.available():
+        pytest.skip("Node formula sidecar not installed (npm install in packages/core/formula/node)")
+    out = MathJaxFormulaRenderer(tmp_path).to_image(r"\ce{2H2 + O2 -> 2H2O}")
+    assert out and out.exists() and out.stat().st_size > 0

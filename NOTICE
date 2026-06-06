@@ -31,6 +31,11 @@ Key runtime dependencies (all permissive — no copyleft):
   - pypdfium2     (Apache-2.0 / BSD-3) — PDF figure rendering (PDFium = BSD; NOT PyMuPDF)
   - Pillow        (MIT-CMU) — image cropping/saving for rendered figures
   - docling       (MIT, OPTIONAL extra) — Tier-2 PDF parsing backend (NOT bundled by default)
+
+Optional Node sidecar (packages/core/formula/node — installed via `npm install`, NOT bundled;
+called as an arms-length subprocess, never linked into the Python code):
+  - mathjax-full       (Apache-2.0) — LaTeX → SVG (incl. mhchem chemistry, matrices)
+  - @resvg/resvg-js    (MPL-2.0)    — SVG → PNG rasterization
   - langgraph     (Apache-2.0) — agent orchestration (interrupt / checkpoint / streaming)
   - fastapi       (MIT)  — HTTP API (SSE streaming + Hard-Stop resume)
   - uvicorn       (BSD)  — ASGI server (python -m asa_api)

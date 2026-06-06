@@ -31,9 +31,9 @@ def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str 
 
         llm = provider_from_env()
     if formula_renderer is None:
-        from formula_render import MatplotlibFormulaRenderer  # lazy
+        from formula_render import default_formula_renderer  # lazy; MathJax tier if Node sidecar present
 
-        formula_renderer = MatplotlibFormulaRenderer()
+        formula_renderer = default_formula_renderer()
     resolved_out = out_dir or os.environ.get("ASA_OUT_DIR", "exports")
     from asa_agents import build_deck_detailed  # two-stage detailed planner for production runs
 
