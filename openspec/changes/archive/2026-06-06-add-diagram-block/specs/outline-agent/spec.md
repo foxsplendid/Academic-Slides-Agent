@@ -1,9 +1,9 @@
 ## ADDED Requirements
 
 ### Requirement: Diagrams from the paper's logic
-The planner MAY emit a `DiagramBlock` to visualize a process, comparison, or relationship, but its
-nodes/edges SHALL reflect structure present in the evidence; the planner SHALL NOT fabricate
-relationships.
+The planner SHALL emit a `DiagramBlock` only with nodes/edges that reflect a structure present in the
+evidence and SHALL NOT fabricate relationships (it may visualize a process, comparison, or
+relationship the paper actually describes).
 
 #### Scenario: Prompt forbids fabricated relationships
 - **WHEN** the planner prompts are produced

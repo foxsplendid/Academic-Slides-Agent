@@ -34,3 +34,10 @@ proceed to approval. The number of re-plans SHALL be bounded by `max_retries`.
 - **THEN** the loop stops after `max_retries` re-plans and still reaches the approval Hard-Stop with
   the residual findings recorded in state
 
+### Requirement: Diagram edge validation
+The critic SHALL flag a diagram edge whose `source` or `target` does not match a defined node id.
+
+#### Scenario: A dangling edge is flagged
+- **WHEN** a diagram has an edge referencing a node id not present in its nodes
+- **THEN** the critic reports the dangling edge
+
