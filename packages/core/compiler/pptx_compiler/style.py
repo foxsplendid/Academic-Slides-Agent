@@ -28,6 +28,7 @@ class StyleProfile:
     node_fill_rgb: RGBColor  # diagram node fill
     node_line_rgb: RGBColor  # diagram node / connector line
     widescreen: bool = True
+    title_rgb: RGBColor | None = None  # slide-title color (None = theme default / black)
 
 
 # The established tokens (derived from the user's academic 组会 deck) — default, so output is unchanged.
@@ -64,7 +65,27 @@ MODERN_TEAL = StyleProfile(
     node_line_rgb=RGBColor(0x00, 0x80, 0x80),
 )
 
-_PROFILES = {p.name: p for p in (ACADEMIC, MODERN_TEAL)}
+# SCAFFOLD — design tokens extracted from PPT-Agent's `academic_defense` design_spec (white bg + dark-blue
+# titles + red emphasis + blue accents). Only the token *values* (colors/fonts/sizes are facts) are used,
+# not any code/markup. TEMPORARY: to be replaced by a profile built from the user's own decks.
+PPTAGENT_ACADEMIC = StyleProfile(
+    name="pptagent_academic",
+    ea_font="微软雅黑",
+    latin_font="Arial",
+    title_pt=26.0,
+    cover_title_pt=40.0,
+    section_pt=30.0,
+    body_pt=16.0,
+    caption_pt=11.0,
+    table_header_pt=14.0,
+    table_body_pt=12.0,
+    emphasis_rgb=RGBColor(0xCC, 0x00, 0x00),  # accent red
+    node_fill_rgb=RGBColor(0xE8, 0xF4, 0xFC),  # light blue-gray
+    node_line_rgb=RGBColor(0x00, 0x66, 0xCC),  # accent blue
+    title_rgb=RGBColor(0x00, 0x33, 0x66),  # primary dark blue
+)
+
+_PROFILES = {p.name: p for p in (ACADEMIC, MODERN_TEAL, PPTAGENT_ACADEMIC)}
 
 
 def get_style(name: str | None) -> StyleProfile:

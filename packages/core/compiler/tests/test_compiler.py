@@ -322,6 +322,24 @@ def test_style_profile_changes_fonts(tmp_path):
     assert default == a  # default == academic (unchanged)
 
 
+def test_title_color_profile(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[SlideIR(slide_id="s", layout_type=LayoutType.BULLET_EVIDENCE, title="标题", blocks=[BulletBlock(items=["x"])])],
+    )
+    prs = Presentation(str(compile_deck(deck, tmp_path / "ptg.pptx", style="pptagent_academic")))
+    title_colors = {
+        str(r.font.color.rgb)
+        for slide in prs.slides
+        for sh in slide.shapes
+        if sh.has_text_frame
+        for p in sh.text_frame.paragraphs
+        for r in p.runs
+        if r.text.strip() == "标题" and r.font.color and r.font.color.type is not None
+    }
+    assert "003366" in title_colors  # the profile's dark-blue title color is applied
+
+
 def test_bullet_font_auto_fits():
     from pptx_compiler.blocks import _fit_font
 

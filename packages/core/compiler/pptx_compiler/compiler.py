@@ -74,13 +74,13 @@ def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resol
         para = box.text_frame.paragraphs[0]
         para.alignment = PP_ALIGN.CENTER
         title_pt = style.cover_title_pt if s.layout_type is LayoutType.TITLE else style.section_pt
-        _blocks.add_rich_text(para, s.title, size=Pt(title_pt), bold=True, style=style)
+        _blocks.add_rich_text(para, s.title, size=Pt(title_pt), bold=True, style=style, color=style.title_rgb)
         content_top = int(Inches(4.4))
     else:
         box = slide.shapes.add_textbox(content_left, int(Inches(0.3)), content_width, int(Inches(1.0)))
         box.text_frame.word_wrap = True
         para = box.text_frame.paragraphs[0]
-        _blocks.add_rich_text(para, s.title, size=Pt(style.title_pt), bold=True, style=style)
+        _blocks.add_rich_text(para, s.title, size=Pt(style.title_pt), bold=True, style=style, color=style.title_rgb)
         content_top = int(Inches(1.5))
 
     if not s.blocks:

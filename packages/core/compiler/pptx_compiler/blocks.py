@@ -40,8 +40,9 @@ def _set_ea(font, typeface: str) -> None:
     ea.set("typeface", typeface)
 
 
-def add_rich_text(paragraph, text: str, *, size, bold: bool = False, style: StyleProfile = ACADEMIC) -> None:
-    """Add runs to ``paragraph``, rendering ``**…**`` spans as bold emphasis-colored while the rest is default."""
+def add_rich_text(paragraph, text: str, *, size, bold: bool = False, style: StyleProfile = ACADEMIC, color=None) -> None:
+    """Add runs to ``paragraph``, rendering ``**…**`` spans as bold emphasis-colored while the rest uses
+    ``color`` (or the theme default when None)."""
     segments: list[tuple[str, bool]] = []
     pos = 0
     for m in _EMPHASIS.finditer(text):
@@ -62,6 +63,8 @@ def add_rich_text(paragraph, text: str, *, size, bold: bool = False, style: Styl
         f.name = style.latin_font
         if emph:
             f.color.rgb = style.emphasis_rgb
+        elif color is not None:
+            f.color.rgb = color
         _set_ea(f, style.ea_font)
 
 
