@@ -63,29 +63,10 @@ MODERN_TEAL = StyleProfile(
     emphasis_rgb=RGBColor(0x00, 0x80, 0x80),
     node_fill_rgb=RGBColor(0xD5, 0xEF, 0xEC),
     node_line_rgb=RGBColor(0x00, 0x80, 0x80),
+    title_rgb=RGBColor(0x00, 0x80, 0x80),  # teal titles (exercises the title-color token)
 )
 
-# SCAFFOLD — design tokens extracted from PPT-Agent's `academic_defense` design_spec (white bg + dark-blue
-# titles + red emphasis + blue accents). Only the token *values* (colors/fonts/sizes are facts) are used,
-# not any code/markup. TEMPORARY: to be replaced by a profile built from the user's own decks.
-PPTAGENT_ACADEMIC = StyleProfile(
-    name="pptagent_academic",
-    ea_font="微软雅黑",
-    latin_font="Arial",
-    title_pt=26.0,
-    cover_title_pt=40.0,
-    section_pt=30.0,
-    body_pt=16.0,
-    caption_pt=11.0,
-    table_header_pt=14.0,
-    table_body_pt=12.0,
-    emphasis_rgb=RGBColor(0xCC, 0x00, 0x00),  # accent red
-    node_fill_rgb=RGBColor(0xE8, 0xF4, 0xFC),  # light blue-gray
-    node_line_rgb=RGBColor(0x00, 0x66, 0xCC),  # accent blue
-    title_rgb=RGBColor(0x00, 0x33, 0x66),  # primary dark blue
-)
-
-_PROFILES = {p.name: p for p in (ACADEMIC, MODERN_TEAL, PPTAGENT_ACADEMIC)}
+_PROFILES = {p.name: p for p in (ACADEMIC, MODERN_TEAL)}
 
 
 def get_style(name: str | None) -> StyleProfile:

@@ -327,7 +327,7 @@ def test_title_color_profile(tmp_path):
         deck_id="d",
         slides=[SlideIR(slide_id="s", layout_type=LayoutType.BULLET_EVIDENCE, title="标题", blocks=[BulletBlock(items=["x"])])],
     )
-    prs = Presentation(str(compile_deck(deck, tmp_path / "ptg.pptx", style="pptagent_academic")))
+    prs = Presentation(str(compile_deck(deck, tmp_path / "tc.pptx", style="modern_teal")))
     title_colors = {
         str(r.font.color.rgb)
         for slide in prs.slides
@@ -337,7 +337,7 @@ def test_title_color_profile(tmp_path):
         for r in p.runs
         if r.text.strip() == "标题" and r.font.color and r.font.color.type is not None
     }
-    assert "003366" in title_colors  # the profile's dark-blue title color is applied
+    assert "008080" in title_colors  # the profile's title color (teal) is applied
 
 
 def test_bullet_font_auto_fits():
