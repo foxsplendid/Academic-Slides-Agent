@@ -129,6 +129,7 @@ def build_outline(
     feedback: Optional[list[str]] = None,
     max_attempts: int = 3,
     progress=None,
+    prior_slides=None,
 ) -> Deck:
     """Call the LLM and parse its output through the Slide-IR boundary (rejects non-IR).
 

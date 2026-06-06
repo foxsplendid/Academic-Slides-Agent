@@ -9,6 +9,7 @@ is what produces depth. Assembled slides pass the strict Slide-IR boundary.
 from __future__ import annotations
 
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Optional
 
@@ -140,6 +141,44 @@ def _expand_slide(
     raise IRBoundaryError(f"slide expansion failed for {plan.get('slide_id')}: {last}")
 
 
+_REPAIR_SYSTEM = """你在修正一页已生成的科研幻灯片。给你该页当前 JSON 和它的问题清单,请**只修复这些问题**,\
+保持该页主题、证据、术语、配图/图表/图件不变。重新输出**该页**合法 Slide-IR JSON(同 schema:slide_id/\
+layout_type/title/blocks/speaker_notes/provenance),不要解释、不要 markdown 围栏。"""
+
+_SLIDE_REF = re.compile(r"slide '([^']+)'")
+
+
+def _bad_ids(feedback: list[str]) -> dict[str, list[str]]:
+    """Map flagged slide_id -> its findings, parsed from critic finding strings."""
+    out: dict[str, list[str]] = {}
+    for f in feedback:
+        m = _SLIDE_REF.search(f)
+        if m:
+            out.setdefault(m.group(1), []).append(f)
+    return out
+
+
+def _repair_slide(slide: SlideIR, findings: list[str], llm: LLM, *, max_attempts: int = 2) -> SlideIR:
+    base = (
+        f"当前这页 JSON:\n{slide.model_dump_json()}\n\n这页存在的问题:\n"
+        + "\n".join(f"- {f}" for f in findings)
+        + "\n\n请只修复这些问题,重新输出该页 JSON。"
+    )
+    prompt = base
+    last: Optional[Exception] = None
+    for _ in range(max(1, max_attempts)):
+        raw = llm.complete(prompt, system=_REPAIR_SYSTEM)
+        try:
+            d = json.loads(_extract_json(raw))
+            d.setdefault("slide_id", slide.slide_id)
+            d.setdefault("layout_type", slide.layout_type.value)
+            return SlideIR.model_validate(d)
+        except Exception as err:
+            last = err
+            prompt = base + f"\n\n上次输出无法解析:{str(err)[:200]};只返回修正后的单页 JSON。"
+    raise IRBoundaryError(f"repair failed for {slide.slide_id}: {last}")
+
+
 def _emit(progress: Progress, event: dict) -> None:
     if progress:
         try:
@@ -157,12 +196,26 @@ def build_deck_detailed(
     progress: Progress = None,
     parallel: bool = True,
     max_workers: int = 6,
+    prior_slides: Optional[list[SlideIR]] = None,
 ) -> Deck:
     """Skeleton -> per-slide focused expansion -> assembled Deck (validated by the IR boundary).
 
     Slides are expanded in parallel by default (each is independent; calls are I/O-bound); on any
     worker failure it falls back to serial. ``progress`` is called for the skeleton and each slide.
+
+    On a critic retry (``prior_slides`` + ``feedback``), only the flagged slides are repaired and the
+    rest are kept verbatim — no skeleton call, no re-expanding good slides.
     """
+    if prior_slides and feedback:
+        bad = _bad_ids(feedback)
+        total = len(prior_slides)
+        _emit(progress, {"phase": "repair", "total": total})
+        repaired: list[SlideIR] = []
+        for i, s in enumerate(prior_slides):
+            repaired.append(_repair_slide(s, bad[s.slide_id], llm) if s.slide_id in bad else s)
+            _emit(progress, {"phase": "slide", "done": i + 1, "total": total})
+        return Deck(deck_id="deck", slides=repaired)
+
     _emit(progress, {"phase": "skeleton"})
     plans = _skeleton(assets, tables, llm, feedback)
     if not plans:

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.16 |
+| **Version** | 0.1.17 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -384,3 +384,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.14 | **Logic diagrams** (`DiagramBlock`): the LLM emits a **semantic** diagram (nodes+edges+type, **no coordinates**) and a **deterministic layout engine** (`pptx_compiler/diagram.py`, 6 types: flow/tree/cycle/comparison/pyramid/timeline) renders native rounded-rect nodes + arrow connectors — no coordinate hallucination, no VLM needed (contrast: SVG-coordinate agents need a geometry+VLM critic). Critic validates edge node-refs. Verified: planner emitted a 4-stage flow from a paper's method; 6 types render native shapes. |
 | 2026-06-06 | 0.1.15 | **Overflow auto-fit (§6.5)**: the compiler estimates bullet line count (CJK-aware) for the region and **shrinks the font to a floor** so dense academic text doesn't overflow ("measure, then place"). Pagination/spill still future. |
 | 2026-06-06 | 0.1.16 | **Enhancement batch 1**: critic's `two_column_table` accepts table/chart/diagram (no more chart/diagram false-flags); default checkpointer registers `slide_ir` types so resume is msgpack-warning-free **and** future-strict-safe (verified 0 warnings, resume intact); the per-slide "→ interpretation" bullet is now mandatory in the expand prompt. |
+| 2026-06-06 | 0.1.17 | **Enhancement batch 2 — incremental critic retry**: on a retry the two-stage builder repairs **only the flagged slides** (focused fix-this-slide call, prior topic/evidence preserved) and keeps the rest verbatim — no skeleton call, no re-expanding good slides. Verified: a one-slide defect makes exactly one LLM call instead of N+1. |

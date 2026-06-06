@@ -186,6 +186,24 @@ def test_two_stage_builder_deepens_content():
     assert s2.speaker_notes  # notes generated
 
 
+def test_incremental_repair_only_recalls_flagged_slide():
+    from slide_ir import BulletBlock, LayoutType, SlideIR
+
+    prior = [
+        SlideIR(slide_id="s1", layout_type=LayoutType.BULLET_EVIDENCE, title="good", blocks=[BulletBlock(items=["a", "b"])], speaker_notes="n"),
+        SlideIR(slide_id="s2", layout_type=LayoutType.BULLET_EVIDENCE, title="bad", blocks=[BulletBlock(items=["x"])], speaker_notes="n"),
+    ]
+    feedback = ["slide 's2': bullet list too long (9 > 7 items)"]
+    fixed = json.dumps(
+        {"slide_id": "s2", "layout_type": "bullet_evidence", "title": "fixed", "blocks": [{"type": "bullets", "items": ["short"]}], "speaker_notes": "n", "provenance": {"source": "p"}}
+    )
+    llm = FakeLLM(fixed)
+    deck = build_deck_detailed([], [], llm, feedback=feedback, prior_slides=prior)
+    assert len(llm.calls) == 1  # only the flagged slide was re-generated (no skeleton, no good-slide calls)
+    assert deck.slides[0].title == "good"  # unflagged slide kept verbatim
+    assert deck.slides[1].title == "fixed"  # flagged slide repaired
+
+
 def test_two_stage_keeps_assigned_figure():
     from asa_agents import build_deck_detailed
 
