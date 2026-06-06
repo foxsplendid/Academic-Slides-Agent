@@ -27,6 +27,9 @@ from slide_ir import (
 
 from . import blocks as _blocks
 from .formula_renderer import FormulaRenderer, NullFormulaRenderer
+from .style import ACADEMIC, StyleProfile, get_style
+
+_DEFAULT_STYLE = ACADEMIC
 
 _MARGIN = Inches(0.5)
 _CENTERED = (LayoutType.TITLE, LayoutType.SECTION)
@@ -43,24 +46,24 @@ def _blank_layout(prs):
     return min(layouts, key=lambda layout: len(list(layout.placeholders)))
 
 
-def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolver=None):
+def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE):
     if isinstance(block, TableBlock):
-        _blocks.render_table(slide, block, region)
+        _blocks.render_table(slide, block, region, style)
     elif isinstance(block, BulletBlock):
-        _blocks.render_bullets(slide, block, region)
+        _blocks.render_bullets(slide, block, region, style)
     elif isinstance(block, FormulaBlock):
         _blocks.render_formula(slide, block, region, renderer)
     elif isinstance(block, FigureBlock):
-        _blocks.render_figure(slide, block, region, asset_resolver)
+        _blocks.render_figure(slide, block, region, asset_resolver, style)
     elif isinstance(block, ChartBlock):
         _blocks.render_chart(slide, block, region)
     elif isinstance(block, DiagramBlock):
         from .diagram import render_diagram
 
-        render_diagram(slide, block, region)
+        render_diagram(slide, block, region, style)
 
 
-def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None) -> None:
+def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE) -> None:
     slide_w, slide_h = prs.slide_width, prs.slide_height
     content_left = int(_MARGIN)
     content_width = int(slide_w) - 2 * int(_MARGIN)
@@ -70,15 +73,14 @@ def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resol
         box.text_frame.word_wrap = True
         para = box.text_frame.paragraphs[0]
         para.alignment = PP_ALIGN.CENTER
-        _blocks.add_rich_text(
-            para, s.title, size=Pt(40 if s.layout_type is LayoutType.TITLE else 32), bold=True
-        )
+        title_pt = style.cover_title_pt if s.layout_type is LayoutType.TITLE else style.section_pt
+        _blocks.add_rich_text(para, s.title, size=Pt(title_pt), bold=True, style=style)
         content_top = int(Inches(4.4))
     else:
         box = slide.shapes.add_textbox(content_left, int(Inches(0.3)), content_width, int(Inches(1.0)))
         box.text_frame.word_wrap = True
         para = box.text_frame.paragraphs[0]
-        _blocks.add_rich_text(para, s.title, size=Pt(28), bold=True)
+        _blocks.add_rich_text(para, s.title, size=Pt(style.title_pt), bold=True, style=style)
         content_top = int(Inches(1.5))
 
     if not s.blocks:
@@ -94,7 +96,7 @@ def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resol
     for block, w in zip(s.blocks, weights):
         slice_h = int(usable_h * w / total_w)
         region = (content_left, cursor, content_width, slice_h)
-        _render_block(slide, block, region, renderer, asset_resolver)
+        _render_block(slide, block, region, renderer, asset_resolver, style)
         cursor += slice_h + gap
 
 
@@ -105,15 +107,17 @@ def compile_deck(
     template: Optional[str | Path] = None,
     formula_renderer: Optional[FormulaRenderer] = None,
     asset_resolver: Optional[dict] = None,
+    style: StyleProfile | str | None = None,
 ) -> Path:
     """Render a `Deck` to a native, editable `.pptx` and return the output path.
 
-    When `template` is a `.pptx` path, it is used as the base presentation so the output
-    inherits its theme, fonts, and slide size. ``asset_resolver`` maps a figure block's
-    ``asset_id`` to a rendered image path (from the Evidence Pool).
+    When `template` is a `.pptx` path, it is used as the base presentation so the output inherits its
+    theme, fonts, and slide size. ``style`` selects a `StyleProfile` (fonts/sizes/colors; default
+    ``academic``). ``asset_resolver`` maps a figure block's ``asset_id`` to a rendered image path.
     """
+    profile = style if isinstance(style, StyleProfile) else get_style(style)
     prs = Presentation(str(template)) if template else Presentation()
-    if template is None:  # default to 16:9 widescreen to match the reference 组会 deck
+    if template is None and profile.widescreen:  # 16:9 unless a template dictates its own size
         prs.slide_width = Inches(13.333)
         prs.slide_height = Inches(7.5)
     renderer = formula_renderer or NullFormulaRenderer()
@@ -121,7 +125,7 @@ def compile_deck(
 
     for slide_ir in deck.slides:
         slide = prs.slides.add_slide(layout)
-        _render_slide(prs, slide, slide_ir, renderer, asset_resolver)
+        _render_slide(prs, slide, slide_ir, renderer, asset_resolver, profile)
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)

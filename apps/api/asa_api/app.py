@@ -57,7 +57,7 @@ def _progress(update: dict) -> dict:
     return out
 
 
-def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", planner=None) -> FastAPI:
+def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", planner=None, style=None) -> FastAPI:
     app = FastAPI(title="Academic-Slides-Agent API")
     _origins = [
         o.strip()
@@ -73,7 +73,7 @@ def create_app(llm, *, formula_renderer=None, out_dir: str | Path = "exports", p
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    graph_kwargs = {"formula_renderer": formula_renderer, "out_dir": out_dir}
+    graph_kwargs = {"formula_renderer": formula_renderer, "out_dir": out_dir, "style": style}
     if planner is not None:
         graph_kwargs["planner"] = planner
     graph = build_graph(llm, **graph_kwargs)

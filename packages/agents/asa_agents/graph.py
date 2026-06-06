@@ -51,6 +51,7 @@ def build_graph(
     out_dir: str | Path = "exports",
     checkpointer=None,
     planner=build_outline,
+    style=None,
 ):
     """Build and compile the orchestration graph. Inject `llm`/`formula_renderer` via closure.
 
@@ -114,7 +115,7 @@ def build_graph(
         out_path = run_dir / "out.pptx"
         deck = Deck(deck_id=state.job_id, slides=state.slides)
         resolver = {a.asset_id: a.content_ref for a in state.evidence if a.kind == "figure"}
-        compile_deck(deck, out_path, formula_renderer=formula_renderer, asset_resolver=resolver)
+        compile_deck(deck, out_path, formula_renderer=formula_renderer, asset_resolver=resolver, style=style)
         try:  # human-readable + machine artifacts for diffing runs (best-effort)
             (run_dir / "deck.json").write_text(deck.model_dump_json(indent=2), encoding="utf-8")
             (run_dir / "deck.md").write_text(deck_to_markdown(deck), encoding="utf-8")

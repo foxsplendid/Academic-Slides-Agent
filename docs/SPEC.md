@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.1.18 |
+| **Version** | 0.1.19 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -389,3 +389,4 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.16 | **Enhancement batch 1**: critic's `two_column_table` accepts table/chart/diagram (no more chart/diagram false-flags); default checkpointer registers `slide_ir` types so resume is msgpack-warning-free **and** future-strict-safe (verified 0 warnings, resume intact); the per-slide "→ interpretation" bullet is now mandatory in the expand prompt. |
 | 2026-06-06 | 0.1.17 | **Enhancement batch 2 — incremental critic retry**: on a retry the two-stage builder repairs **only the flagged slides** (focused fix-this-slide call, prior topic/evidence preserved) and keeps the rest verbatim — no skeleton call, no re-expanding good slides. Verified: a one-slide defect makes exactly one LLM call instead of N+1. |
 | 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |
+| 2026-06-06 | 0.1.19 | **Template system v1 = style profiles**: the reference look is per-shape (not a master/theme), so a "template" is a `StyleProfile` of design tokens (fonts/sizes/colors/emphasis/diagram colors) the compiler applies. `ACADEMIC` (user-derived tokens) is default → output unchanged; `compile_deck(style=…)` / `ASA_STYLE` swap it (verified academic↔modern_teal change fonts/colors). Optional `.pptx` base template still supported for master-based themes. |

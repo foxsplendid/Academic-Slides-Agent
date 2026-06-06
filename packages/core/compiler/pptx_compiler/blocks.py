@@ -21,13 +21,12 @@ from pptx.util import Pt
 from slide_ir import BulletBlock, ChartBlock, FigureBlock, FormulaBlock, TableBlock
 
 from .formula_renderer import FormulaRenderer
+from .style import ACADEMIC, StyleProfile
 
 Region = tuple[int, int, int, int]
 
-# Reference-deck styling: 黑体 for CJK, Times New Roman for Latin/numbers, red for emphasis.
-EA_FONT = "黑体"
-LATIN_FONT = "Times New Roman"
-_RED = RGBColor(0xFF, 0x00, 0x00)
+EA_FONT = ACADEMIC.ea_font  # kept for back-compat; per-render styling comes from the StyleProfile
+LATIN_FONT = ACADEMIC.latin_font
 _EMPHASIS = re.compile(r"\*\*(.+?)\*\*")
 
 
@@ -41,8 +40,8 @@ def _set_ea(font, typeface: str) -> None:
     ea.set("typeface", typeface)
 
 
-def add_rich_text(paragraph, text: str, *, size, bold: bool = False) -> None:
-    """Add runs to ``paragraph``, rendering ``**…**`` spans as bold red while the rest is default."""
+def add_rich_text(paragraph, text: str, *, size, bold: bool = False, style: StyleProfile = ACADEMIC) -> None:
+    """Add runs to ``paragraph``, rendering ``**…**`` spans as bold emphasis-colored while the rest is default."""
     segments: list[tuple[str, bool]] = []
     pos = 0
     for m in _EMPHASIS.finditer(text):
@@ -60,10 +59,10 @@ def add_rich_text(paragraph, text: str, *, size, bold: bool = False) -> None:
         f = run.font
         f.size = size
         f.bold = bold or emph
-        f.name = LATIN_FONT
+        f.name = style.latin_font
         if emph:
-            f.color.rgb = _RED
-        _set_ea(f, EA_FONT)
+            f.color.rgb = style.emphasis_rgb
+        _set_ea(f, style.ea_font)
 
 
 _EMU_PER_PT = 12700.0
@@ -88,19 +87,19 @@ def _fit_font(items: list[str], width: int, height: int, *, base: float = 16.0, 
     return max(f, floor)
 
 
-def render_bullets(slide, block: BulletBlock, region: Region):
+def render_bullets(slide, block: BulletBlock, region: Region, style: StyleProfile = ACADEMIC):
     left, top, width, height = region
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
     tf.word_wrap = True
-    size = Pt(_fit_font(block.items, width, height))  # auto-shrink dense text to avoid overflow
+    size = Pt(_fit_font(block.items, width, height, base=style.body_pt))  # auto-shrink dense text
     for i, item in enumerate(block.items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        add_rich_text(p, f"• {item}", size=size)
+        add_rich_text(p, f"• {item}", size=size, style=style)
     return box
 
 
-def render_table(slide, block: TableBlock, region: Region):
+def render_table(slide, block: TableBlock, region: Region, style: StyleProfile = ACADEMIC):
     left, top, width, height = region
     n_cols = len(block.columns)
     n_rows = len(block.rows) + 1  # header + data
@@ -110,14 +109,14 @@ def render_table(slide, block: TableBlock, region: Region):
     for c, name in enumerate(block.columns):
         cell = table.cell(0, c)
         cell.text = ""
-        add_rich_text(cell.text_frame.paragraphs[0], str(name), size=Pt(14), bold=True)
+        add_rich_text(cell.text_frame.paragraphs[0], str(name), size=Pt(style.table_header_pt), bold=True, style=style)
 
     for r, row in enumerate(block.rows, start=1):
         for c in range(n_cols):
             cell = table.cell(r, c)
             cell.text = ""
             value = str(row[c]) if c < len(row) else ""
-            add_rich_text(cell.text_frame.paragraphs[0], value, size=Pt(12))
+            add_rich_text(cell.text_frame.paragraphs[0], value, size=Pt(style.table_body_pt), style=style)
 
     return graphic_frame
 
@@ -179,7 +178,7 @@ def render_formula(slide, block: FormulaBlock, region: Region, renderer: Formula
     return box
 
 
-def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None):
+def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None, style: StyleProfile = ACADEMIC):
     left, top, width, height = region
     # Resolve the asset_id to a rendered image path (Evidence Pool), then fall back to a raw path.
     resolved = asset_resolver.get(block.asset_id) if asset_resolver else None
@@ -204,7 +203,7 @@ def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None
             cap.text_frame.word_wrap = True
             para = cap.text_frame.paragraphs[0]
             para.alignment = PP_ALIGN.CENTER
-            add_rich_text(para, block.caption, size=Pt(11))
+            add_rich_text(para, block.caption, size=Pt(style.caption_pt), style=style)
         return pic
 
     # Placeholder when the asset is not resolvable (e.g. the planner described a figure with no asset).
@@ -214,5 +213,5 @@ def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None
     text = f"[figure: {block.asset_id}]"
     if block.caption:
         text += f"\n{block.caption}"
-    add_rich_text(tf.paragraphs[0], text, size=Pt(14))
+    add_rich_text(tf.paragraphs[0], text, size=Pt(14), style=style)
     return box
