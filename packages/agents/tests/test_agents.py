@@ -339,3 +339,22 @@ def test_deck_to_markdown_renders():
     )
     md = deck_to_markdown(deck)
     assert "## 1. 标题" in md and "- a" in md and "讲稿: 讲一下" in md
+
+
+def test_deck_to_markdown_renders_diagram():
+    from asa_agents import deck_to_markdown
+    from slide_ir import Deck, DiagramBlock, DiagramNode, LayoutType, SlideIR
+
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s1",
+                layout_type=LayoutType.BULLET_EVIDENCE,
+                title="流程",
+                blocks=[DiagramBlock(diagram_type="flow", nodes=[DiagramNode(id="a", label="第一步"), DiagramNode(id="b", label="第二步")])],
+            )
+        ],
+    )
+    md = deck_to_markdown(deck)
+    assert "[diagram: flow]" in md and "第一步" in md

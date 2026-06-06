@@ -20,6 +20,9 @@ def deck_to_markdown(deck: Deck) -> str:
                 lines.append(f"- _[table]_ columns={b.columns} ({len(b.rows)} rows)")
             elif b.type == "formula":
                 lines.append(f"- _[formula]_ `{b.latex}`")
+            elif b.type == "diagram":
+                names = ", ".join(n.label for n in b.nodes)
+                lines.append(f"- _[diagram: {b.diagram_type}]_ {b.title or ''} nodes=({names})".rstrip())
         if s.speaker_notes:
             lines.append(f"> 讲稿: {s.speaker_notes}")
         lines.append("")
