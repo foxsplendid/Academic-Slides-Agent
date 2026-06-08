@@ -406,3 +406,45 @@ def test_unresolved_figure_falls_back_to_placeholder(tmp_path):
     assert not any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)
     texts = " ".join(sh.text_frame.text for sh in slide.shapes if sh.has_text_frame)
     assert "missing" in texts
+
+
+def test_native_omml_formula_round_trips(tmp_path):
+    """Opt-in native OMML survives save+reopen as an <m:oMath> equation with a text fallback."""
+
+    class _OmmlRenderer:
+        def to_omml(self, latex):
+            from formula_render.latex_omml import latex_to_omml
+
+            return latex_to_omml(latex)
+
+        def to_image(self, latex):
+            return None
+
+    deck = Deck(
+        deck_id="d",
+        slides=[SlideIR(slide_id="s", layout_type=LayoutType.FORMULA_BANNER, title="f", blocks=[FormulaBlock(latex="E = mc^2")])],
+    )
+    out = compile_deck(deck, tmp_path / "o.pptx", formula_renderer=_OmmlRenderer())
+    xml = Presentation(str(out)).slides[0].shapes[-1]._element.xml
+    assert "oMath" in xml  # native editable equation present
+    assert "Fallback" in xml and "mc:" in xml  # graceful text fallback wrapper
+
+
+def test_native_omml_falls_back_to_image_when_unsupported(tmp_path):
+    img = tmp_path / "f.png"
+    img.write_bytes(_PNG_1x1)
+
+    class _OmmlRenderer:
+        def to_omml(self, latex):
+            return None  # unsupported -> no OMML
+
+        def to_image(self, latex):
+            return img
+
+    deck = Deck(
+        deck_id="d",
+        slides=[SlideIR(slide_id="s", layout_type=LayoutType.FORMULA_BANNER, title="f", blocks=[FormulaBlock(latex=r"\ce{H2O}")])],
+    )
+    out = compile_deck(deck, tmp_path / "o.pptx", formula_renderer=_OmmlRenderer())
+    slide = Presentation(str(out)).slides[0]
+    assert any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)  # fell back to image

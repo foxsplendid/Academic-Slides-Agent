@@ -120,3 +120,14 @@ def test_mathjax_renders_chemistry_if_available(tmp_path):
         pytest.skip("Node formula sidecar not installed (npm install in packages/core/formula/node)")
     out = MathJaxFormulaRenderer(tmp_path).to_image(r"\ce{2H2 + O2 -> 2H2O}")
     assert out and out.exists() and out.stat().st_size > 0
+
+
+def test_auto_renderer_omml_opt_in():
+    from formula_render import AutoFormulaRenderer
+
+    off = AutoFormulaRenderer()
+    assert off.to_omml("x^2") is None  # default off
+
+    on = AutoFormulaRenderer(native_omml=True)
+    assert on.to_omml("x^2") is not None and "oMath" in on.to_omml("x^2")
+    assert on.to_omml(r"\ce{H2O}") is None  # unsupported -> None even when enabled

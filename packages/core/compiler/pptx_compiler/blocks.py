@@ -160,8 +160,42 @@ def render_chart(slide, block: ChartBlock, region: Region):
     return frame
 
 
+def _embed_native_formula(slide, latex: str, omml: str, region: Region):
+    """Inject an editable OMML equation, wrapped in mc:AlternateContent with a LaTeX-text Fallback so a
+    reader that ignores the a14 extension degrades to text (never a blank/corrupt slide)."""
+    from xml.sax.saxutils import escape as _esc
+
+    from pptx.oxml import parse_xml
+
+    left, top, width, height = region
+    box = slide.shapes.add_textbox(left, top, width, height)
+    box.text_frame.word_wrap = True
+    para = box.text_frame.paragraphs[0]._p
+    xml = (
+        '<mc:AlternateContent '
+        'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+        'xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main" '
+        'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+        f'<mc:Choice Requires="a14"><a14:m><m:oMathPara>{omml}</m:oMathPara></a14:m></mc:Choice>'
+        f'<mc:Fallback><a:r><a:t>{_esc(latex)}</a:t></a:r></mc:Fallback>'
+        '</mc:AlternateContent>'
+    )
+    para.append(parse_xml(xml))
+    return box
+
+
 def render_formula(slide, block: FormulaBlock, region: Region, renderer: FormulaRenderer):
     left, top, width, height = region
+    # Experimental native-editable OMML (opt-in via the renderer); any failure falls through to image.
+    to_omml = getattr(renderer, "to_omml", None)
+    if callable(to_omml):
+        try:
+            omml = to_omml(block.latex)
+            if omml:
+                return _embed_native_formula(slide, block.latex, omml, region)
+        except Exception:
+            pass
     image = None
     try:
         image = renderer.to_image(block.latex)
