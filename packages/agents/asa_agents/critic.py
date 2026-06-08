@@ -8,6 +8,9 @@ free.
 
 from __future__ import annotations
 
+import difflib
+import re
+
 from slide_ir import EvidenceAsset, LayoutType, SlideIR
 
 # Thresholds — conservative on purpose; tune via a future OpenSpec change, not ad-hoc.
@@ -16,9 +19,34 @@ MAX_BULLETS = 7
 MAX_BULLET_CHARS = 200
 MAX_TABLE_COLS = 6
 MAX_TABLE_ROWS = 12
+MIN_TITLE_SIM = 0.85  # >= this normalized-title similarity counts two slides as near-duplicates
 
 # Layouts that carry no content blocks by design.
 _STRUCTURAL_LAYOUTS = {LayoutType.TITLE, LayoutType.SECTION}
+_CONTENT_BLOCK_TYPES = {"bullets", "table", "figure", "chart", "diagram", "formula"}
+
+
+def _norm_title(t: str) -> str:
+    # Unicode mode (no re.ASCII): \w keeps CJK, so only whitespace/ASCII punctuation is stripped.
+    return re.sub(r"[\s\W_]+", "", (t or "").lower())
+
+
+def _duplicate_title_findings(slides: list[SlideIR]) -> list[str]:
+    """Flag near-duplicate content-slide titles. Worded WITHOUT the ``slide '<id>'`` token so the repair
+    loop (which can only fix a slide in place, never delete one) does not loop on it — it reaches the
+    human at the Hard-Stop instead. The deterministic ``_dedup_plans`` in deepen.py is the real fix."""
+    content = [s for s in slides if s.layout_type not in _STRUCTURAL_LAYOUTS and s.title.strip()]
+    out: list[str] = []
+    for i in range(len(content)):
+        ki = _norm_title(content[i].title)
+        for j in range(i + 1, len(content)):
+            kj = _norm_title(content[j].title)
+            if ki == kj or difflib.SequenceMatcher(None, ki, kj).ratio() >= MIN_TITLE_SIM:
+                out.append(
+                    f"near-duplicate slides {content[i].slide_id} & {content[j].slide_id}: "
+                    f"'{content[i].title}' ≈ '{content[j].title}' — consider removing one"
+                )
+    return out
 
 
 def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[str]:
@@ -39,6 +67,13 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
         # Empty content slide.
         if not structural and not s.blocks:
             findings.append(f"{tag}: content slide has no blocks")
+
+        # Divider carrying content blocks — layout misselection (repair-routable: relayout in place).
+        if structural and any(b.type in _CONTENT_BLOCK_TYPES for b in s.blocks):
+            findings.append(
+                f"{tag}: layout '{s.layout_type.value}' is a divider but carries content blocks; "
+                "relayout to bullet_evidence"
+            )
 
         kinds = {b.type for b in s.blocks}
 
@@ -87,4 +122,5 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
                         )
                         break
 
+    findings.extend(_duplicate_title_findings(slides))
     return findings

@@ -193,3 +193,37 @@ def test_budget_exhaustion_then_approve_compiles(tmp_path):
     final = graph.invoke(Command(resume={"approved": True}), cfg)
     out = final.get("output_path") if isinstance(final, dict) else getattr(final, "output_path", None)
     assert out and Path(out).exists()  # best-effort deck still compiles after human approval
+
+
+# --- dedup + layout misselection ---------------------------------------------
+
+
+def test_structural_layout_with_content_flagged():
+    s = SlideIR(slide_id="s9", layout_type=LayoutType.SECTION, title="Results", blocks=[BulletBlock(items=["x"])])
+    findings = critique_deck([s], [])
+    hit = [f for f in findings if "divider but carries content" in f]
+    assert hit and "slide 's9'" in hit[0]  # repair-routable
+
+
+def test_structural_layout_empty_is_clean():
+    s = SlideIR(slide_id="s9", layout_type=LayoutType.SECTION, title="Methods", blocks=[])
+    assert not any("divider but carries content" in f for f in critique_deck([s], []))
+
+
+def test_duplicate_titles_flagged_but_not_repair_routable():
+    slides = [
+        SlideIR(slide_id="s1", layout_type=LayoutType.BULLET_EVIDENCE, title="质量与数量阈值的权衡", blocks=[BulletBlock(items=["a"])]),
+        SlideIR(slide_id="s2", layout_type=LayoutType.BULLET_EVIDENCE, title="质量数量阈值权衡", blocks=[BulletBlock(items=["b"])]),
+    ]
+    findings = critique_deck(slides, [])
+    dup = [f for f in findings if "near-duplicate" in f]
+    assert dup and "s1" in dup[0] and "s2" in dup[0]
+    assert "slide '" not in dup[0]  # deliberately NOT repair-routable -> reaches the human
+
+
+def test_distinct_titles_not_flagged():
+    slides = [
+        SlideIR(slide_id="s1", layout_type=LayoutType.BULLET_EVIDENCE, title="研究背景", blocks=[BulletBlock(items=["a"])]),
+        SlideIR(slide_id="s2", layout_type=LayoutType.BULLET_EVIDENCE, title="实验结果", blocks=[BulletBlock(items=["b"])]),
+    ]
+    assert not any("near-duplicate" in f for f in critique_deck(slides, []))

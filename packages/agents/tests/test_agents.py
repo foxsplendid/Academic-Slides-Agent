@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from slide_ir import EvidenceAsset, GenerationState, IRBoundaryError, Phase, TableBlock
+from slide_ir import EvidenceAsset, GenerationState, IRBoundaryError, LayoutType, Phase, SlideIR, TableBlock
 from asa_agents import FakeLLM, approve_outline, build_deck_detailed, build_outline, plan_outline
 
 
@@ -412,3 +412,56 @@ def test_expand_workers_env_limits_concurrency(monkeypatch):
     assets, tables = _evidence()
     build_deck_detailed(assets, tables, _ConcLLM(json.dumps({"slides": _plans(6)})))
     assert cur["peak"] <= 2  # ASA_EXPAND_WORKERS=2 capped in-flight expansions
+
+
+# --- dedup + layout backstop -------------------------------------------------
+
+
+def test_skeleton_dedup_drops_near_duplicate():
+    from asa_agents.deepen import _dedup_plans
+
+    plans = [
+        {"slide_id": "s0", "title": "质量与数量阈值的权衡", "focus": "讲阈值权衡", "layout_type": "bullet_evidence", "evidence_pages": []},
+        {"slide_id": "s1", "title": "研究背景", "focus": "背景", "layout_type": "bullet_evidence", "evidence_pages": []},
+        {"slide_id": "s2", "title": "质量数量阈值权衡", "focus": "讲阈值权衡", "layout_type": "bullet_evidence", "evidence_pages": []},
+    ]
+    kept = _dedup_plans(plans)
+    assert [p["slide_id"] for p in kept] == ["s0", "s1"]  # near-dup s2 dropped, order preserved
+
+
+def test_dedup_keeps_distinct():
+    from asa_agents.deepen import _dedup_plans
+
+    plans = [
+        {"title": "数据与方法", "focus": "a"},
+        {"title": "结果与验证", "focus": "b"},
+        {"title": "讨论与机制", "focus": "c"},
+    ]
+    assert len(_dedup_plans(plans)) == 3
+
+
+def test_dedup_not_expanded():
+    """A dropped near-duplicate plan is never expanded (saves an LLM call)."""
+    skeleton = json.dumps(
+        {"slides": [
+            {"slide_id": "s0", "title": "阈值权衡分析", "focus": "f", "layout_type": "bullet_evidence", "evidence_pages": []},
+            {"slide_id": "s1", "title": "阈值权衡的分析", "focus": "f", "layout_type": "bullet_evidence", "evidence_pages": []},
+        ]}
+    )
+    assets, tables = _evidence()
+    deck = build_deck_detailed(assets, tables, _EchoLLM(skeleton))
+    assert len(deck.slides) == 1  # the two near-dup plans collapsed to one
+
+
+def test_structural_layout_relayout_at_assembly():
+    from asa_agents.deepen import _fix_structural_layout
+
+    s = SlideIR.model_validate(
+        {"slide_id": "x", "layout_type": "section", "title": "结果", "blocks": [{"type": "bullets", "items": ["a"]}], "speaker_notes": "n", "provenance": {"source": "p"}}
+    )
+    assert _fix_structural_layout(s).layout_type == LayoutType.BULLET_EVIDENCE
+
+    divider = SlideIR.model_validate(
+        {"slide_id": "y", "layout_type": "section", "title": "方法", "blocks": [], "speaker_notes": "", "provenance": {"source": "p"}}
+    )
+    assert _fix_structural_layout(divider).layout_type == LayoutType.SECTION  # real divider untouched
