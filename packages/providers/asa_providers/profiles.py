@@ -1,6 +1,6 @@
 """Named OpenAI-compatible provider profiles + environment resolution.
 
-Built-in defaults are generic public endpoints. Account-specific endpoints (e.g. a private MiMo
+Built-in defaults are generic public endpoints. Account-specific endpoints (e.g. a private
 gateway) come from the environment (``ASA_<NAME>_BASE_URL``) and are never committed.
 """
 
@@ -13,7 +13,6 @@ from .openai_compat import OpenAICompatibleLLM
 _OPENAI_PROFILES: dict[str, dict] = {
     "openai": {"base_url": None, "default_model": "gpt-4o-mini"},
     "deepseek": {"base_url": "https://api.deepseek.com", "default_model": "deepseek-chat"},
-    "mimo": {"base_url": "https://api.xiaomimimo.com/v1", "default_model": "mimo-v2.5-pro"},
 }
 
 

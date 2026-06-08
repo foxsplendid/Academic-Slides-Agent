@@ -35,6 +35,28 @@ _MARGIN = Inches(0.5)
 _CENTERED = (LayoutType.TITLE, LayoutType.SECTION)
 # Figures dominate; tables/formulas need room; bullets are compact. Used for weighted region heights.
 _BLOCK_WEIGHT = {"figure": 3.2, "chart": 3.0, "diagram": 3.0, "table": 2.0, "formula": 1.6, "bullets": 1.0}
+# Visual blocks otherwise crowd out co-located text; cap their combined height so bullets stay readable.
+_VISUAL_BLOCKS = {"figure", "chart", "diagram"}
+_VISUAL_HEIGHT_CAP = 0.60
+
+
+def _balanced_fractions(block_types: list[str]) -> list[float]:
+    """Per-block height fractions from weights, with the combined figure/chart/diagram height capped at
+    ``_VISUAL_HEIGHT_CAP`` when bullets co-exist (so co-located text keeps a readable share). A
+    figure-only slide is unaffected (the cap only applies when bullets are present)."""
+    weights = [_BLOCK_WEIGHT.get(t, 1.0) for t in block_types]
+    fracs = [w / sum(weights) for w in weights]
+    vis = [i for i, t in enumerate(block_types) if t in _VISUAL_BLOCKS]
+    if vis and "bullets" in block_types:
+        vis_sum = sum(fracs[i] for i in vis)
+        if vis_sum > _VISUAL_HEIGHT_CAP:
+            rest = [i for i in range(len(block_types)) if i not in vis]
+            rest_sum = sum(fracs[i] for i in rest) or 1.0
+            for i in vis:
+                fracs[i] *= _VISUAL_HEIGHT_CAP / vis_sum
+            for i in rest:
+                fracs[i] *= (1 - _VISUAL_HEIGHT_CAP) / rest_sum
+    return fracs
 
 
 def _blank_layout(prs):
@@ -89,12 +111,11 @@ def _render_slide(prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resol
     content_h = int(slide_h) - content_top - int(_MARGIN)
     gap = int(Inches(0.15))
     n = len(s.blocks)
-    weights = [_BLOCK_WEIGHT.get(b.type, 1.0) for b in s.blocks]
-    total_w = sum(weights)
+    fracs = _balanced_fractions([b.type for b in s.blocks])
     usable_h = content_h - gap * (n - 1)
     cursor = content_top
-    for block, w in zip(s.blocks, weights):
-        slice_h = int(usable_h * w / total_w)
+    for block, f in zip(s.blocks, fracs):
+        slice_h = int(usable_h * f)
         region = (content_left, cursor, content_width, slice_h)
         _render_block(slide, block, region, renderer, asset_resolver, style)
         cursor += slice_h + gap

@@ -20,7 +20,7 @@ __all__ = [
 def provider_from_env():
     """Construct an adapter selected by ``ASA_LLM_PROVIDER`` (default ``openai``).
 
-    Accepts a named OpenAI-compatible profile (openai/deepseek/mimo) or ``anthropic``.
+    Accepts a named OpenAI-compatible profile (openai/deepseek) or ``anthropic``.
     """
     name = os.environ.get("ASA_LLM_PROVIDER", "openai").strip().lower()
     if name == "anthropic":

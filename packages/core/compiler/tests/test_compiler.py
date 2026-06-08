@@ -448,3 +448,36 @@ def test_native_omml_falls_back_to_image_when_unsupported(tmp_path):
     out = compile_deck(deck, tmp_path / "o.pptx", formula_renderer=_OmmlRenderer())
     slide = Presentation(str(out)).slides[0]
     assert any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)  # fell back to image
+
+
+# --- figure/text layout balance ----------------------------------------------
+
+
+def test_balanced_fractions_caps_figure_with_bullets():
+    from pptx_compiler.compiler import _balanced_fractions
+
+    f = _balanced_fractions(["figure", "bullets"])
+    assert abs(sum(f) - 1.0) < 1e-9
+    assert f[0] <= 0.60 + 1e-9  # figure capped
+    assert f[1] >= 0.40 - 1e-9  # bullets keep a readable share
+
+
+def test_balanced_fractions_figure_only_unaffected():
+    from pptx_compiler.compiler import _balanced_fractions
+
+    assert _balanced_fractions(["figure"]) == [1.0]  # no bullets -> figure keeps full height
+
+
+def test_balanced_fractions_multi_visual_combined_cap():
+    from pptx_compiler.compiler import _balanced_fractions
+
+    f = _balanced_fractions(["figure", "chart", "bullets"])
+    vis = f[0] + f[1]
+    assert vis <= 0.60 + 1e-9 and f[2] >= 0.40 - 1e-9
+
+
+def test_balanced_fractions_table_not_capped():
+    from pptx_compiler.compiler import _balanced_fractions
+
+    f = _balanced_fractions(["table", "bullets"])  # table is text-like, not a visual block
+    assert abs(f[0] - 2 / 3) < 1e-9 and abs(f[1] - 1 / 3) < 1e-9
