@@ -303,3 +303,75 @@ def test_parse_mineru_content_list(tmp_path):
     assert len(figs) == 1
     assert Path(figs[0].content_ref).is_file()
     assert "Fig. 1" in figs[0].locator["caption"]
+
+
+# --- figure panel splitting (ASA_SPLIT_FIGURES) ------------------------------
+
+
+def _panel_image(path, w, h, cols, rows, gutter=30):
+    """Make a cols x rows grid of solid-color cells separated by white gutters."""
+    from PIL import Image, ImageDraw
+
+    im = Image.new("RGB", (w, h), (255, 255, 255))
+    d = ImageDraw.Draw(im)
+    cw = (w - (cols + 1) * gutter) // cols
+    ch = (h - (rows + 1) * gutter) // rows
+    colors = [(200, 60, 60), (60, 120, 200), (60, 170, 90), (180, 140, 40), (140, 70, 160), (70, 160, 160)]
+    k = 0
+    for r in range(rows):
+        for c in range(cols):
+            x = gutter + c * (cw + gutter)
+            y = gutter + r * (ch + gutter)
+            d.rectangle([x, y, x + cw, y + ch], fill=colors[k % len(colors)])
+            k += 1
+    im.save(str(path))
+    return path
+
+
+def test_split_composite_2x2(tmp_path):
+    from ingestion import split_composite
+
+    img = _panel_image(tmp_path / "grid.png", 800, 600, 2, 2)
+    panels = split_composite(img, tmp_path / "ws", "fig")
+    assert len(panels) == 4 and all(p.exists() for p in panels)
+
+
+def test_split_composite_1x3(tmp_path):
+    from ingestion import split_composite
+
+    img = _panel_image(tmp_path / "strip.png", 900, 500, 3, 1)
+    assert len(split_composite(img, tmp_path / "ws", "fig")) == 3
+
+
+def test_split_composite_single_panel_no_split(tmp_path):
+    from PIL import Image
+    from ingestion import split_composite
+
+    Image.new("RGB", (800, 600), (120, 120, 120)).save(str(tmp_path / "solid.png"))  # no gutters
+    assert split_composite(tmp_path / "solid.png", tmp_path / "ws", "fig") == []
+
+
+def test_split_composite_small_image_gated(tmp_path):
+    from ingestion import split_composite
+
+    img = _panel_image(tmp_path / "tiny.png", 200, 150, 2, 1)  # below MIN_W/MIN_H
+    assert split_composite(img, tmp_path / "ws", "fig") == []
+
+
+def test_mineru_panel_split_opt_in(tmp_path, monkeypatch):
+    from ingestion import parse_mineru_content_list
+
+    assets_dir = tmp_path / "mineru"
+    (assets_dir / "images").mkdir(parents=True)
+    _panel_image(assets_dir / "images" / "fig.png", 800, 600, 2, 2)
+    blocks = [{"type": "chart", "img_path": "images/fig.png", "chart_caption": ["Fig. 1. grid"], "page_idx": 0}]
+
+    # opt-in OFF -> only the whole figure
+    off = parse_mineru_content_list(blocks, assets_dir, "p.pdf", tmp_path / "ws_off", "p")
+    assert sum(1 for a in off.assets if a.kind == "figure") == 1
+
+    # opt-in ON -> whole figure + 4 panels
+    monkeypatch.setenv("ASA_SPLIT_FIGURES", "1")
+    on = parse_mineru_content_list(blocks, assets_dir, "p.pdf", tmp_path / "ws_on", "p")
+    figs = [a for a in on.assets if a.kind == "figure"]
+    assert len(figs) == 5 and any(a.locator.get("panel") == 0 for a in figs)

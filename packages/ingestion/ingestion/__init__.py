@@ -4,6 +4,7 @@ from .archive import ingest_zip
 from .docling_parser import docling_available, ingest_pdf_docling
 from .figures import extract_figures
 from .mineru import ingest_pdf_mineru, parse_mineru_content_list
+from .panels import split_composite
 from .models import IngestResult
 from .pdf import ingest_pdf
 from .quality import assess_quality
@@ -24,4 +25,5 @@ __all__ = [
     "ingest_pdf_docling",
     "docling_available",
     "assess_quality",
+    "split_composite",
 ]

@@ -9,6 +9,7 @@ mapped into the Evidence Pool. Uses only the stdlib (urllib/zipfile/json) — no
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import time
@@ -134,15 +135,29 @@ def parse_mineru_content_list(
                 queue = fig_captions.get(page)
                 if queue:
                     caption = queue.pop(0)
+            parent_id = f"{stem}:fig{fig_i}:p{page}"
             result.assets.append(
                 EvidenceAsset(
-                    asset_id=f"{stem}:fig{fig_i}:p{page}",
+                    asset_id=parent_id,
                     kind="figure",
                     content_ref=str(dst),
                     source=source,
                     locator={"page": page + 1, "caption": caption[:200]},
                 )
             )
+            if os.environ.get("ASA_SPLIT_FIGURES", "").lower() in ("1", "true", "yes"):
+                from .panels import split_composite  # lazy: only when opt-in
+
+                for j, panel in enumerate(split_composite(dst, workspace, f"{stem}_fig{fig_i}")):
+                    result.assets.append(
+                        EvidenceAsset(
+                            asset_id=f"{parent_id}:panel{j}",
+                            kind="figure",
+                            content_ref=str(panel),
+                            source=source,
+                            locator={"page": page + 1, "caption": caption[:200], "panel": j, "parent": parent_id},
+                        )
+                    )
 
     for page in sorted(page_text):
         result.assets.append(
