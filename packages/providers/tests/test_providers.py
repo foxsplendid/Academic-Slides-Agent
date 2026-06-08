@@ -26,8 +26,8 @@ class _FakeOpenAIClient:
     def completions(self):
         return self
 
-    def create(self, *, model, messages, temperature):
-        self.captured = {"model": model, "messages": messages, "temperature": temperature}
+    def create(self, **kwargs):
+        self.captured = kwargs
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="HELLO_IR"))])
 
 
@@ -101,3 +101,16 @@ def test_resolve_mimo_profile_env_overrides(monkeypatch):
 def test_openai_live_roundtrip():
     out = OpenAICompatibleLLM().complete("Reply with the single word OK.", system="Be terse.")
     assert isinstance(out, str) and out
+
+
+def test_max_tokens_forwarded_when_set():
+    client = _FakeOpenAIClient()
+    llm = OpenAICompatibleLLM(model="m", max_tokens=900, client=client)
+    llm.complete("hi", system="s")
+    assert client.captured.get("max_tokens") == 900
+
+
+def test_max_tokens_omitted_by_default():
+    client = _FakeOpenAIClient()
+    OpenAICompatibleLLM(model="m", client=client).complete("hi")
+    assert "max_tokens" not in client.captured  # unset -> not sent (no truncation risk)

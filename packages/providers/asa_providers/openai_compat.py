@@ -19,10 +19,13 @@ class OpenAICompatibleLLM:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         temperature: float = 0.2,
+        max_tokens: Optional[int] = None,
         client=None,
     ) -> None:
         self.model = model or os.environ.get("ASA_OPENAI_MODEL", "gpt-4o-mini")
         self.temperature = temperature
+        env_mt = os.environ.get("ASA_MAX_TOKENS")  # cap runaway decode (latency); default unset
+        self.max_tokens = max_tokens if max_tokens is not None else (int(env_mt) if env_mt and env_mt.isdigit() else None)
         if client is not None:
             self._client = client
         else:
@@ -38,7 +41,8 @@ class OpenAICompatibleLLM:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        response = self._client.chat.completions.create(
-            model=self.model, messages=messages, temperature=self.temperature
-        )
+        kwargs = {"model": self.model, "messages": messages, "temperature": self.temperature}
+        if self.max_tokens:
+            kwargs["max_tokens"] = self.max_tokens
+        response = self._client.chat.completions.create(**kwargs)
         return response.choices[0].message.content or ""

@@ -358,3 +358,57 @@ def test_deck_to_markdown_renders_diagram():
     )
     md = deck_to_markdown(deck)
     assert "[diagram: flow]" in md and "第一步" in md
+
+
+# --- speedup: adaptive evidence cap + env-tunable concurrency ----------------
+
+
+class _CaptureLLM:
+    def __init__(self):
+        self.prompt = ""
+
+    def complete(self, prompt, *, system=None):
+        self.prompt = prompt
+        return _slide_json("X")
+
+
+def test_expand_evidence_cap_adaptive():
+    from asa_agents.deepen import _expand_slide
+
+    ev = {1: "字" * 20000}
+    plain = {"slide_id": "s", "layout_type": "bullet_evidence", "title": "t", "focus": "f", "evidence_pages": [1]}
+    llm = _CaptureLLM()
+    _expand_slide(plain, ev, {}, llm)
+    assert llm.prompt.count("字") <= 3850  # plain bullet slide -> tighter cap
+
+    fig = {**plain, "figure_id": "x"}
+    _expand_slide(fig, ev, {"x": "caption"}, llm)
+    assert 3850 < llm.prompt.count("字") <= 6050  # figure slide keeps full context
+
+
+def test_expand_workers_env_limits_concurrency(monkeypatch):
+    import time as _t
+
+    monkeypatch.setenv("ASA_EXPAND_WORKERS", "2")
+    lock = threading.Lock()
+    cur = {"n": 0, "peak": 0}
+
+    class _ConcLLM:
+        def __init__(self, skeleton):
+            self.skeleton = skeleton
+
+        def complete(self, prompt, *, system=None):
+            if system and "一页" in system:
+                with lock:
+                    cur["n"] += 1
+                    cur["peak"] = max(cur["peak"], cur["n"])
+                _t.sleep(0.05)
+                with lock:
+                    cur["n"] -= 1
+                m = re.search(r"页标题:(.+)", prompt)
+                return _slide_json(m.group(1).strip() if m else "X")
+            return self.skeleton
+
+    assets, tables = _evidence()
+    build_deck_detailed(assets, tables, _ConcLLM(json.dumps({"slides": _plans(6)})))
+    assert cur["peak"] <= 2  # ASA_EXPAND_WORKERS=2 capped in-flight expansions

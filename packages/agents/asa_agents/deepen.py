@@ -9,7 +9,9 @@ is what produces depth. Assembled slides pass the strict Slide-IR boundary.
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Optional
 
@@ -40,7 +42,7 @@ EXPAND_SYSTEM = """你在为科研组会的**一页**幻灯片生成详细内容
 
 只输出**一页** Slide-IR JSON 对象:
 {"slide_id":"<沿用>","layout_type":"<沿用>","title":"<沿用或精炼>",
- "blocks":[<block>...],"speaker_notes":"<3-5 句讲稿>","provenance":{"source":"<页码/出处>"}}
+ "blocks":[<block>...],"speaker_notes":"<3-4 句讲稿>","provenance":{"source":"<页码/出处>"}}
 block 之一:
   {"type":"bullets","items":["...","..."]}
   {"type":"figure","asset_id":"<指定的图 id>","caption":"<一句图注>"}
@@ -57,7 +59,8 @@ scatter 用每个 series 的 `x` 与 `values` 配对。**所有数字必须直�
 **不要给坐标**(版面由系统自动排)。flow/timeline 的 edges 可省略(按 nodes 顺序连)。**节点与关系必须来自论文,严禁编造**。
 - bullet 给 **4-6 条有实质**的要点(具体到方法、数值、机制、结论);**最后一条 bullet 必须以 "→ " 开头**,\
 给出"这说明了什么"的解读(不可省略)
-- speaker_notes:讲者照着念的口播稿
+- speaker_notes:讲者照着念的口播稿,**3-4 句即可**
+- **简洁高密度**:每条 bullet 一句话讲清,不要冗长展开、不要重复正文、不超过约 60 字;整页输出尽量精炼
 - 术语/符号/方法名/引用保持原文(Random Forest、SHAP、O₂、r=0.938、Lyons et al., 2014 等)
 - 每条 bullet 至多一个 `**重点词或数字**`,不要滥用
 - 若给了有效 figure_id:layout_type 用 "figure_caption",放一个 figure block(asset_id 用给定 id)+ 一句 caption,并另给 2-4 条要点 bullet
@@ -108,7 +111,9 @@ def _expand_slide(
     max_attempts: int = 2,
 ) -> SlideIR:
     pages = plan.get("evidence_pages") or []
-    ev_text = "\n\n".join(f"[第 {p} 页]\n{ev_by_page.get(int(p), '')}" for p in pages)[:6000]
+    # adaptive cap: figure/table slides keep full context; plain bullet slides are already focused.
+    cap = 6000 if (plan.get("figure_id") or plan.get("table_refs")) else 3800
+    ev_text = "\n\n".join(f"[第 {p} 页]\n{ev_by_page.get(int(p), '')}" for p in pages)[:cap]
     fig_id = plan.get("figure_id")
     fig_note = ""
     if fig_id and fig_id in figs_by_id:
@@ -195,7 +200,7 @@ def build_deck_detailed(
     feedback: Optional[list[str]] = None,
     progress: Progress = None,
     parallel: bool = True,
-    max_workers: int = 6,
+    max_workers: Optional[int] = None,
     prior_slides: Optional[list[SlideIR]] = None,
 ) -> Deck:
     """Skeleton -> per-slide focused expansion -> assembled Deck (validated by the IR boundary).
@@ -225,19 +230,33 @@ def build_deck_detailed(
     ev_by_page = _evidence_by_page(assets)
     figs_by_id = _figures_by_id(assets)
 
+    workers = max_workers or int(os.environ.get("ASA_EXPAND_WORKERS", "6") or "6")
+    debug_timing = bool(os.environ.get("ASA_DEBUG_TIMING"))
+    durations: list[float] = []
+
     def expand(plan: dict) -> SlideIR:
-        return _expand_slide(plan, ev_by_page, figs_by_id, llm, tables)
+        if not debug_timing:
+            return _expand_slide(plan, ev_by_page, figs_by_id, llm, tables)
+        t0 = time.perf_counter()
+        try:
+            return _expand_slide(plan, ev_by_page, figs_by_id, llm, tables)
+        finally:
+            durations.append(time.perf_counter() - t0)
 
     slides: list[Optional[SlideIR]] = [None] * total
     if parallel and total > 1:
         try:
-            with ThreadPoolExecutor(max_workers=min(max_workers, total)) as pool:
+            wave_start = time.perf_counter() if debug_timing else None
+            with ThreadPoolExecutor(max_workers=min(workers, total)) as pool:
                 futures = {pool.submit(expand, plan): i for i, plan in enumerate(plans)}
                 done = 0
                 for fut in as_completed(futures):
                     slides[futures[fut]] = fut.result()  # propagates worker exceptions
                     done += 1
                     _emit(progress, {"phase": "slide", "done": done, "total": total})
+            if wave_start is not None:  # probe: wall ≈ sum ⇒ gateway is serializing concurrency
+                wall = time.perf_counter() - wave_start
+                _emit(progress, {"phase": "timing", "wall_s": round(wall, 1), "sum_s": round(sum(durations), 1), "concurrency": round(sum(durations) / max(wall, 0.01), 2)})
             return Deck(deck_id="deck", slides=[s for s in slides if s is not None])
         except Exception:
             _emit(progress, {"phase": "fallback_serial"})  # parallel failed -> serial below
