@@ -255,8 +255,28 @@ def _render_toc(slide, s: SlideIR, content: Region, style: StyleProfile) -> None
         _blocks.add_rich_text(para, text, size=Pt(style.body_pt + 4), bold=True, style=style, color=style.text_rgb)
 
 
+def _add_footer_breadcrumb(slide, prs, style: StyleProfile, text: str) -> None:
+    box = slide.shapes.add_textbox(
+        int(_MARGIN), int(prs.slide_height) - int(Inches(0.44)), int(Inches(4.0)), int(Inches(0.32))
+    )
+    run = box.text_frame.paragraphs[0].add_run()
+    run.text = text
+    run.font.size = Pt(9)
+    run.font.name = style.latin_font
+    run.font.color.rgb = style.muted_rgb
+    _blocks._set_ea(run.font, style.ea_font)
+
+
 def _render_slide(
-    prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE, page_no: int = 0, icon_resolver=None
+    prs,
+    slide,
+    s: SlideIR,
+    renderer: FormulaRenderer,
+    asset_resolver=None,
+    style=_DEFAULT_STYLE,
+    page_no: int = 0,
+    icon_resolver=None,
+    section: str = "",
 ) -> None:
     slide_w, slide_h = prs.slide_width, prs.slide_height
     content_left = int(_MARGIN)
@@ -269,22 +289,38 @@ def _render_slide(
         para.alignment = PP_ALIGN.CENTER
         title_pt = style.cover_title_pt if s.layout_type is LayoutType.TITLE else style.section_pt
         _blocks.add_rich_text(para, s.title, size=Pt(title_pt), bold=True, style=style, color=style.title_rgb)
+        if s.subtitle:  # cover 副标题 / section 导语 / ending 联系语 — fills the bare-divider critique
+            sub = slide.shapes.add_textbox(content_left, int(Inches(3.55)), content_width, int(Inches(0.6)))
+            sub.text_frame.word_wrap = True
+            sp = sub.text_frame.paragraphs[0]
+            sp.alignment = PP_ALIGN.CENTER
+            _blocks.add_rich_text(sp, s.subtitle, size=Pt(16), style=style, color=style.muted_rgb)
         if style.accent_bar:  # centered accent rule under the big title
             rule_w = int(Inches(3.2))
-            _accent_rect(slide, (int(slide_w) - rule_w) // 2, int(Inches(4.05)), rule_w, int(Inches(0.05)), style.accent_rgb)
+            _accent_rect(slide, (int(slide_w) - rule_w) // 2, int(Inches(4.25)), rule_w, int(Inches(0.05)), style.accent_rgb)
         if style.page_numbers and s.layout_type is LayoutType.SECTION and page_no:
             _add_page_number(slide, prs, style, page_no)
-        content_top = int(Inches(4.4))
+        content_top = int(Inches(4.5))
     else:
-        box = slide.shapes.add_textbox(content_left, int(Inches(0.3)), content_width, int(Inches(1.0)))
+        box = slide.shapes.add_textbox(content_left, int(Inches(0.3)), content_width, int(Inches(0.9)))
         box.text_frame.word_wrap = True
         para = box.text_frame.paragraphs[0]
         _blocks.add_rich_text(para, s.title, size=Pt(style.title_pt), bold=True, style=style, color=style.title_rgb)
-        if style.accent_bar:  # short accent rule under the title
-            _accent_rect(slide, content_left, int(Inches(1.22)), int(Inches(1.8)), int(Inches(0.045)), style.accent_rgb)
+        kicker_h = 0
+        if s.subtitle:  # 页眉导读句 (the slide's one-line takeaway, paper-ppt-agent style)
+            kick = slide.shapes.add_textbox(content_left, int(Inches(1.04)), content_width, int(Inches(0.3)))
+            kick.text_frame.word_wrap = True
+            _blocks.add_rich_text(
+                kick.text_frame.paragraphs[0], s.subtitle, size=Pt(12), style=style, color=style.muted_rgb
+            )
+            kicker_h = int(Inches(0.3))
+        if style.accent_bar:  # short accent rule under the title (and kicker, when present)
+            _accent_rect(slide, content_left, int(Inches(1.22)) + kicker_h, int(Inches(1.8)), int(Inches(0.045)), style.accent_rgb)
         if style.page_numbers and page_no:
             _add_page_number(slide, prs, style, page_no)
-        content_top = int(Inches(1.5))
+        if section:  # 页脚章节导航 (breadcrumb of the current section)
+            _add_footer_breadcrumb(slide, prs, style, section)
+        content_top = int(Inches(1.5)) + kicker_h
 
     if not s.blocks:
         return
@@ -356,9 +392,14 @@ def compile_deck(
     renderer = formula_renderer or NullFormulaRenderer()
     layout = _blank_layout(prs)
 
+    section = ""
     for i, slide_ir in enumerate(deck.slides, start=1):
+        if slide_ir.layout_type is LayoutType.SECTION:
+            section = slide_ir.title  # breadcrumb for the following content slides
         slide = prs.slides.add_slide(layout)
-        _render_slide(prs, slide, slide_ir, renderer, asset_resolver, profile, page_no=i, icon_resolver=icon_resolver)
+        _render_slide(
+            prs, slide, slide_ir, renderer, asset_resolver, profile, page_no=i, icon_resolver=icon_resolver, section=section
+        )
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)

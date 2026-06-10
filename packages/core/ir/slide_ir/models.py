@@ -162,6 +162,7 @@ class SlideIR(BaseModel):
     slide_id: str = Field(min_length=1)
     layout_type: LayoutType
     title: str = ""
+    subtitle: str = ""  # cover: 副标题(论文出处/汇报人); content: 页眉导读句; section/ending: 导语
     blocks: list[Block] = Field(default_factory=list)
     speaker_notes: str = ""
     provenance: dict = Field(default_factory=dict)  # links content back to Evidence Pool

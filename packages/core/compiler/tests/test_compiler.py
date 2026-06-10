@@ -855,3 +855,40 @@ def test_dangling_figure_block_dropped_not_placeholder(tmp_path):
     assert "[figure" not in texts  # no ugly placeholder
     assert "a" in texts  # bullets survived, full width fallback
     assert not any(s.shape_type == MSO_SHAPE_TYPE.PICTURE for s in shapes)
+
+
+# --- theme v2: subtitle/kicker/footer breadcrumb --------------------------------
+
+
+def test_cover_subtitle_rendered(tmp_path):
+    deck = Deck(deck_id="d", slides=[SlideIR(slide_id="t", layout_type=LayoutType.TITLE, title="标题", subtitle="Lin et al., 2026 · 组会汇报")])
+    out = compile_deck(deck, tmp_path / "cv.pptx")
+    texts = " ".join(s.text_frame.text for s in Presentation(str(out)).slides[0].shapes if s.has_text_frame)
+    assert "Lin et al., 2026" in texts
+
+
+def test_content_kicker_and_breadcrumb(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(slide_id="sec", layout_type=LayoutType.SECTION, title="数据与方法"),
+            SlideIR(slide_id="c", layout_type=LayoutType.BULLET_EVIDENCE, title="样本构成", subtitle="1152 对实验数据覆盖五类构造背景", blocks=[BulletBlock(items=["a"])]),
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "kb.pptx")
+    shapes = list(Presentation(str(out)).slides[1].shapes)
+    texts = " ".join(s.text_frame.text for s in shapes if s.has_text_frame)
+    assert "1152 对实验数据" in texts  # kicker line
+    assert "数据与方法" in texts  # footer breadcrumb carries the current section
+
+
+def test_no_breadcrumb_before_first_section(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[SlideIR(slide_id="c", layout_type=LayoutType.BULLET_EVIDENCE, title="背景", blocks=[BulletBlock(items=["a"])])],
+    )
+    out = compile_deck(deck, tmp_path / "nb.pptx")
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    # only title + bullets + page number + accent bar; no stray empty breadcrumb box with text
+    foots = [s for s in shapes if s.has_text_frame and s.top > Inches(6.8) and s.left < Inches(2) and s.text_frame.text.strip()]
+    assert not foots
