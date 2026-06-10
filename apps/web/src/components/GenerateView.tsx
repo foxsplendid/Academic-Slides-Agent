@@ -52,6 +52,7 @@ export function GenerateView() {
     }
   }
   const [vlmCritic, setVlmCritic] = useState(false);
+  const [premium, setPremium] = useState(false);
   const [nativeFormula, setNativeFormula] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -65,7 +66,7 @@ export function GenerateView() {
   async function start() {
     patchRun({ busy: true, error: null, log: [], stage: "parse", done: 0, total: 0 });
     try {
-      const res = await uploadJob(files, { styleName, parser, detail, splitFigures, vlmCritic, nativeFormula });
+      const res = await uploadJob(files, { styleName, parser, detail, splitFigures, vlmCritic, nativeFormula, premium });
       patchRun({ jobId: res.job_id, title: res.title, ingested: res.ingested, warnings: res.warnings, stage: "outline" });
       appendLog(`已摄取 ${res.ingested.files} 个文件 · ${res.ingested.text_pages} 页正文 · ${res.ingested.tables} 表 · ${res.ingested.figures} 图`);
       listJobs().then(setHistory);
@@ -179,6 +180,7 @@ export function GenerateView() {
           {[
             { label: "大图二次切割", desc: "复合图拆为子面板", val: splitFigures, set: setSplitFigures },
             { label: "VLM 视觉评审", desc: "渲染后视觉缺陷检查", val: vlmCritic, set: setVlmCritic },
+            { label: "精品档(实验)", desc: "关键页 LLM 自由构图,导出仍为可编辑矢量", val: premium, set: setPremium },
             { label: "原生公式(实验)", desc: "简单公式可编辑 OMML", val: nativeFormula, set: setNativeFormula },
           ].map((t) => (
             <label

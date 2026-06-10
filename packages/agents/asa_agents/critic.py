@@ -25,7 +25,7 @@ MAX_LAYOUT_RUN = 3  # > this many consecutive content slides sharing one layout 
 
 # Layouts that carry no content blocks by design.
 _STRUCTURAL_LAYOUTS = {LayoutType.TITLE, LayoutType.SECTION, LayoutType.ENDING}
-_CONTENT_BLOCK_TYPES = {"bullets", "table", "figure", "chart", "diagram", "formula", "callout", "stat"}
+_CONTENT_BLOCK_TYPES = {"bullets", "table", "figure", "chart", "diagram", "formula", "callout", "stat", "canvas"}
 
 
 def _norm_title(t: str) -> str:
@@ -120,6 +120,18 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
             findings.append(f"{tag}: layout '{s.layout_type.value}' but no figure block")
         if s.layout_type == LayoutType.TOC and "bullets" not in kinds:
             findings.append(f"{tag}: layout 'toc' but no bullets block (the agenda items)")
+        if s.layout_type == LayoutType.CANVAS:
+            canvas_blocks = [b for b in s.blocks if b.type == "canvas"]
+            if len(canvas_blocks) != 1:
+                findings.append(f"{tag}: layout 'canvas' must carry exactly one canvas block")
+            else:
+                try:
+                    from pptx_compiler import validate_canvas_svg
+
+                    for issue in validate_canvas_svg(canvas_blocks[0].svg):
+                        findings.append(f"{tag}: {issue}")
+                except Exception:
+                    pass
 
         # Per-block overflow / reference checks.
         for b in s.blocks:

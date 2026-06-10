@@ -513,3 +513,57 @@ def test_table_title_normalized_to_caption():
     out = _normalize_blocks(d)
     b = out["blocks"][0]
     assert "title" not in b and b["caption"] == "主要端元特征"
+
+
+# --- add-visual-canvas: premium tier -----------------------------------------
+
+_CANVAS_OK_SVG = (
+    '<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 1280 720\\">'
+    '<text x=\\"90\\" y=\\"80\\" font-size=\\"30\\" fill=\\"#333333\\">机制图</text></svg>'
+)
+_CANVAS_PLAN = json.dumps(
+    {"slides": [{"slide_id": "s1", "layout_type": "canvas", "title": "机制", "focus": "画", "evidence_pages": [1], "figure_ids": [], "table_refs": []}]}
+)
+_CANVAS_SLIDE = (
+    '{"slide_id":"s1","layout_type":"canvas","title":"机制","blocks":[{"type":"canvas","svg":"'
+    + _CANVAS_OK_SVG
+    + '"}],"speaker_notes":"n","provenance":{"source":"p1"}}'
+)
+
+
+def test_premium_adds_canvas_vocabulary_to_skeleton():
+    from asa_agents.deepen import PREMIUM_SKELETON_NOTE, build_deck_detailed
+
+    assets, tables = _evidence()
+    llm = FakeLLM(_CANVAS_PLAN, _CANVAS_SLIDE)
+    build_deck_detailed(assets, tables, llm, premium=True)
+    assert any("canvas" in (c["system"] or "") for c in llm.calls)  # note injected
+    llm2 = FakeLLM(_SKELETON, _SLIDE1, _SLIDE2)
+    build_deck_detailed(assets, tables, llm2, premium=False)
+    assert not any("PREMIUM" in (c["system"] or "") or "自由构图" in (c["system"] or "") for c in llm2.calls[:1])
+
+
+def test_canvas_plan_routes_to_canvas_prompt_and_validates():
+    from asa_agents.deepen import build_deck_detailed
+
+    assets, tables = _evidence()
+    llm = FakeLLM(_CANVAS_PLAN, _CANVAS_SLIDE)
+    deck = build_deck_detailed(assets, tables, llm, premium=True)
+    assert deck.slides[0].layout_type.value == "canvas"
+    assert deck.slides[0].blocks[0].type == "canvas"
+    # the expansion call used the canvas authoring system prompt
+    assert any("自由构图" in (c["system"] or "") for c in llm.calls)
+
+
+def test_invalid_canvas_retries_then_falls_back_to_bullets():
+    from asa_agents.deepen import build_deck_detailed
+
+    bad = _CANVAS_SLIDE.replace("</text>", "</text><script>x</script>")
+    bullets = json.dumps(
+        {"slide_id": "s1", "layout_type": "bullet_evidence", "title": "机制", "blocks": [{"type": "bullets", "items": ["a", "b", "→ ok"]}], "speaker_notes": "n", "provenance": {"source": "p1"}}
+    )
+    assets, tables = _evidence()
+    # skeleton, then 3 canvas attempts (all invalid), then the bullet fallback expansion succeeds
+    llm = FakeLLM(_CANVAS_PLAN, bad, bad, bad, bullets)
+    deck = build_deck_detailed(assets, tables, llm, premium=True)
+    assert deck.slides[0].layout_type.value == "bullet_evidence"  # degraded, run not killed

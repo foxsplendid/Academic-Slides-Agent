@@ -42,6 +42,8 @@ def lint_compiled_deck(deck: Deck, pptx_path: str | Path) -> list[str]:
     findings: list[str] = []
 
     for ir, slide in zip(deck.slides, prs.slides):
+        if ir.layout_type.value == "canvas":
+            continue  # premium canvas pages own their geometry (guard + finalize passes cover them)
         tag = f"slide '{ir.slide_id}'"
         shapes = [sh for sh in slide.shapes if (sh.width or 0) > 0 and (sh.height or 0) > 0]
         content = [sh for sh in shapes if sh.width * sh.height > _DECOR_AREA_FRAC * slide_area]

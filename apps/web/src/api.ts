@@ -36,6 +36,7 @@ export interface GenOptions {
   splitFigures: boolean;
   vlmCritic: boolean;
   nativeFormula: boolean;
+  premium: boolean;
 }
 
 export async function uploadJob(files: File[], opts: GenOptions) {
@@ -47,6 +48,7 @@ export async function uploadJob(files: File[], opts: GenOptions) {
   form.append("split_figures", String(opts.splitFigures));
   form.append("vlm_critic", String(opts.vlmCritic));
   form.append("native_formula", String(opts.nativeFormula));
+  form.append("premium", String(opts.premium));
   const res = await fetch(`${API_BASE}/jobs/upload`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`上传失败: ${res.status}`);
   return (await res.json()) as {

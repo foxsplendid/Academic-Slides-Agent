@@ -17,6 +17,7 @@ from pptx.util import Inches, Pt
 from slide_ir import (
     BulletBlock,
     CalloutBlock,
+    CanvasBlock,
     ChartBlock,
     Deck,
     DiagramBlock,
@@ -29,6 +30,7 @@ from slide_ir import (
 )
 
 from . import blocks as _blocks
+from .canvas import canvas_engine_available, inject_canvas_slides, validate_canvas_svg
 from .formula_renderer import FormulaRenderer, NullFormulaRenderer
 from .style import ACADEMIC, StyleProfile, get_style
 
@@ -338,6 +340,20 @@ def _render_slide(
         _render_toc(slide, s, content, style)
         return
 
+    if s.layout_type is LayoutType.CANVAS:
+        # The page is authored as a full-slide SVG and injected after save. Render a fallback note
+        # only when the conversion engine is missing, so the deck never silently loses a page.
+        if not canvas_engine_available():
+            note = slide.shapes.add_textbox(content_left, content_top, content_width, int(Inches(0.6)))
+            _blocks.add_rich_text(
+                note.text_frame.paragraphs[0],
+                "[canvas 页:未安装 svg2pptx 引擎,无法渲染]",
+                size=Pt(14),
+                style=style,
+                color=style.muted_rgb,
+            )
+        return
+
     # Drop figure blocks whose asset cannot resolve to a real file: a literal "[figure: id]"
     # placeholder is worse than no figure (layout then falls back around the remaining blocks).
     def _resolvable(b) -> bool:
@@ -409,4 +425,17 @@ def compile_deck(
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
+
+    # Premium VisualCanvas pages: swap in the converted SVG content (editable vectors + text).
+    canvases: dict[int, str] = {}
+    for i, slide_ir in enumerate(deck.slides, start=1):
+        if slide_ir.layout_type is LayoutType.CANVAS:
+            block = next((b for b in slide_ir.blocks if isinstance(b, CanvasBlock)), None)
+            if block is not None and not validate_canvas_svg(block.svg):
+                canvases[i] = block.svg
+    if canvases and canvas_engine_available():
+        try:
+            inject_canvas_slides(out, canvases)
+        except Exception:
+            pass  # fail open: the deck ships without the canvas swap rather than not at all
     return out

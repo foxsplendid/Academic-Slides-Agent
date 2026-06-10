@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.2.7 |
+| **Version** | 0.3.0 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -391,6 +391,7 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |
 | 2026-06-06 | 0.1.19 | **Template system v1 = style profiles**: the reference look is per-shape (not a master/theme), so a "template" is a `StyleProfile` of design tokens (fonts/sizes/colors/emphasis/diagram colors) the compiler applies. `ACADEMIC` (user-derived tokens) is default → output unchanged; `compile_deck(style=…)` / `ASA_STYLE` swap it (verified academic↔modern_teal change fonts/colors). Optional `.pptx` base template still supported for master-based themes. |
 | 2026-06-06 | 0.1.21 | **Figure panel splitting (opt-in)**: `ingestion/panels.py split_composite` — Pillow-only (numpy-free), AI-free band X-Y-cut gutter detection with conservative over-segmentation gates; under `ASA_SPLIT_FIGURES` each panel becomes a sibling `figure` asset (whole figure kept), flowing end-to-end with zero downstream changes. Verified 2×2→4 / 1×3→3; single/small don't split. |
+| 2026-06-11 | 0.3.0 | **Path B 落地:VisualCanvas 精品档**(B-b/B-c)。CanvasBlock+canvas 版式:LLM 在受约束整页 SVG(viewBox 1280x720)上自由构图;三层防线=canvas guard(禁 script/foreignObject/动画/媒体/image/外链,白名单调色板与字体契约)→ vendored finalize 确定性修复 → svg2pptx 转**原生可编辑** DrawingML 注入包内(矢量+文本,rels 不动,全程 fail-open;lint 跳过 canvas 页)。生成侧:premium 选项→骨架可为最关键 2-3 页规划 canvas,CANVAS_SYSTEM 专用创作提示+守卫验证重试+降级 bullet 兜底;前端精品档开关。**架构原则更新:LLM-不写坐标 现在限定于快速档;精品档以 guard+确定性修复+可视 QA 换表达力,可编辑性硬约束不变。** 真模冒烟:DeepSeek 一次通过守卫,产出森林图对比+性能卡+迷你散点页,40 可编辑文本形状。234 测试。 |
 | 2026-06-11 | 0.2.7 | **释放模型表达 + Path B-(a)**: 全管线约束审计(20 保护性保留/11 放开/10 软化/10 Path B 天花板)。页数与密度默认**模型自决**(auto 档,brief/normal/high 退为软目标);figure_ids 列表化(figure_grid 端到端可表达);图页版式不再强制 figure_caption;配额改指导(强调/图标/章节数/单调);证据可见度提升(digest 24k、扩写 6k/9k、图注 600);图标开放词汇(目录扫描 fail-open);critic 再校准(MAX_BULLETS 9/单调建议性/stat 上限改可修复);TOC 双栏;ASA_MINERU_LANG/ASA_TEMPERATURE。**B-(a) 完成**: MIT 快照 6f679fc 的 svg_to_pptx+finalize 已 vendor(packages/vendor/svg2pptx,NOTICE 署名,LGPL svglib 惰性隔离),真实 SVG→可编辑 PPTX 冒烟通过。 |
 | 2026-06-11 | 0.2.6 | **Theme v2 + 盲测决策门两轮记录**: SlideIR.subtitle(封面元信息/内容页导读句/分隔页导语)+页脚章节导航+强制章节页;复测回归修复(内容页预算排除结构页/每章至少1图/bullets 适配 8% 安全边距/术语统一规则)。门记录:R1 Design 差 0.625,R2(Theme v2 后)0.75,两轮 8/8 评委偏好对方——**按预定阈值 Path B 触发**(对方持久优势=页内信息设计:卡片/引文/对照表;其自绘 SVG 图表大面积损坏反证我方 no-coordinates 路线)。 |
 | 2026-06-10 | 0.2.5 | **P2: 图标体系 + 模板导入**: Tabler 图标(MIT 上游 npm)经 Node/resvg 边车染色出 PNG(`IconRenderer`+44 名**封闭白名单**,未知名静默跳过=宁缺勿滥);`CalloutBlock.icon`/`StatItem.icon` IR 字段+编译器注入式 `icon_resolver`+prompt 白名单策略(每页≤2)。模板导入:`POST /templates` 上传 .pptx → 确定性提取 theme(major 字体+accent1-6 调色盘)→ 注册自定义 StyleProfile(`base_template` 指向原文件→编译时**原生继承母版**),JSON 持久化+启动重水化,前端风格下拉+导入按钮。 |

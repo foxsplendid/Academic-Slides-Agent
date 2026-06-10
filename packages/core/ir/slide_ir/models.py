@@ -31,6 +31,7 @@ class LayoutType(str, Enum):
     TWO_CONTENT = "two_content"  # any two blocks side by side
     FIGURE_GRID = "figure_grid"  # 2-4 figures in a grid
     BIG_FIGURE = "big_figure"  # one dominant figure, minimal text
+    CANVAS = "canvas"  # premium: full-page constrained-SVG composition (VisualCanvas)
 
 
 # --------------------------------------------------------------------------- #
@@ -97,6 +98,15 @@ class StatBlock(_BlockBase):
     items: list[StatItem] = Field(min_length=1)
 
 
+class CanvasBlock(_BlockBase):
+    """Premium-tier free composition: a CONSTRAINED full-page SVG fragment (viewBox 0 0 1280 720;
+    no scripts/foreignObject/external refs — enforced by the canvas guard). Compiled to editable
+    DrawingML vector shapes + text boxes via the vendored MIT svg2pptx engine."""
+
+    type: Literal["canvas"] = "canvas"
+    svg: str = Field(min_length=20)
+
+
 class FigureBlock(_BlockBase):
     type: Literal["figure"] = "figure"
     asset_id: str = Field(min_length=1)  # references an Evidence Pool figure
@@ -146,7 +156,7 @@ class DiagramBlock(_BlockBase):
 
 
 Block = Annotated[
-    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock, ChartBlock, DiagramBlock, CalloutBlock, StatBlock],
+    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock, ChartBlock, DiagramBlock, CalloutBlock, StatBlock, CanvasBlock],
     Field(discriminator="type"),
 ]
 
