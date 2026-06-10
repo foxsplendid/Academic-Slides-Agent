@@ -45,3 +45,12 @@ called as an arms-length subprocess, never linked into the Python code):
 Optional provider SDKs (install only the one you use):
   - openai        (Apache-2.0) — OpenAI-compatible adapter (OpenAI/DeepSeek/aggregators/local)
   - anthropic     (MIT)  — Anthropic (Claude) adapter
+
+## Vendored: asa-svg2pptx (packages/vendor/svg2pptx)
+SVG->DrawingML compiler + SVG finalize passes, vendored from CRui5in/paper-ppt-agent at commit
+6f679fc2ad410597e2e582ceab2a21c72f6bf773 (MIT License, Copyright (c) 2026 CRui5in — the last
+MIT-licensed revision; the upstream project later relicensed to AGPL-3.0 and no AGPL-era code is
+included). Local modifications are listed in packages/vendor/svg2pptx/README.md.
+Optional raster-fallback deps (lazily imported, not required for the vector path):
+svglib (LGPL-3.0 — used unmodified as a library, isolated behind an optional import) and
+reportlab (BSD).

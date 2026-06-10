@@ -1,0 +1,17 @@
+[project]
+name = "asa-svg2pptx"
+version = "0.1.0"
+description = "Vendored MIT SVG->DrawingML compiler + SVG finalize passes (see README for provenance)"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = ["python-pptx>=0.6.23", "Pillow>=10"]
+
+[project.optional-dependencies]
+raster-fallback = ["svglib>=1.5", "reportlab>=4"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["asa_svg2pptx"]
