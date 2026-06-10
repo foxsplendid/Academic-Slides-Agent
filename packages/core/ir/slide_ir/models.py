@@ -228,6 +228,8 @@ class GenerationState(BaseModel):
     retry_count: int = 0
     max_retries: int = 2
     error: Optional[str] = None
+    style: Optional[str] = None  # per-job StyleProfile name (None -> server default)
+    options: dict = Field(default_factory=dict)  # per-job toggles (vlm_critic, native_formula, ...)
 
 
 # --------------------------------------------------------------------------- #

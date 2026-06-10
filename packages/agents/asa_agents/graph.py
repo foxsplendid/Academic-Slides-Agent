@@ -98,6 +98,7 @@ def build_graph(
         }
 
     def critic(state: GenerationState) -> dict:
+        job_style = state.style or style
         findings = critique_deck(state.slides, state.evidence)
         # Quality loop, cheapest first: IR checks -> exact geometry lint -> (opt-in) VLM visual check.
         # The lint/VLM stages compile a throwaway render; both fail open (a broken check never blocks).
@@ -108,11 +109,11 @@ def build_graph(
                 lint_dir.mkdir(parents=True, exist_ok=True)
                 deck = Deck(deck_id=state.job_id, slides=state.slides)
                 resolver = {a.asset_id: a.content_ref for a in state.evidence if a.kind == "figure"}
-                compile_deck(deck, lint_pptx, asset_resolver=resolver, style=style)  # no formula sidecar: fast
+                compile_deck(deck, lint_pptx, asset_resolver=resolver, style=job_style)  # no formula sidecar: fast
                 findings = lint_compiled_deck(deck, lint_pptx)
             except Exception:
                 findings = []
-            if not findings and vision_llm is not None:
+            if not findings and vision_llm is not None and state.options.get("vlm_critic", False):
                 try:
                     from .visual_critic import visual_critique
 
@@ -129,8 +130,16 @@ def build_graph(
 
     def approval(state: GenerationState) -> dict:
         decision = interrupt({"outline": state.outline})  # Hard-Stop: pause for human approval
+        approved = bool(decision.get("approved", True)) if isinstance(decision, dict) else True
         edits = decision.get("edits") if isinstance(decision, dict) else None
+        if not approved:  # human rejected: feed their reason back as findings and replan
+            feedback = (decision.get("feedback") or "").strip() if isinstance(decision, dict) else ""
+            findings = [f"用户退回大纲: {feedback or '请改进整体结构与内容'}"]
+            return {"user_approved_outline": False, "critic_findings": findings, "phase": Phase.OUTLINING}
         return {"user_approved_outline": True, "user_outline_edits": edits, "phase": Phase.MAPPING}
+
+    def after_approval(state: GenerationState) -> str:
+        return "compile" if state.user_approved_outline else "plan"
 
     def compile_slides(state: GenerationState) -> dict:
         run_dir = out_dir_path / "runs" / state.job_id  # per-run isolation (compare agent modes)
@@ -138,7 +147,13 @@ def build_graph(
         out_path = run_dir / "out.pptx"
         deck = Deck(deck_id=state.job_id, slides=state.slides)
         resolver = {a.asset_id: a.content_ref for a in state.evidence if a.kind == "figure"}
-        compile_deck(deck, out_path, formula_renderer=formula_renderer, asset_resolver=resolver, style=style)
+        renderer = formula_renderer
+        if state.options.get("native_formula") and hasattr(renderer, "native_omml"):
+            import copy
+
+            renderer = copy.copy(renderer)  # per-job opt-in without mutating the shared renderer
+            renderer.native_omml = True
+        compile_deck(deck, out_path, formula_renderer=renderer, asset_resolver=resolver, style=state.style or style)
         try:  # human-readable + machine artifacts for diffing runs (best-effort)
             (run_dir / "deck.json").write_text(deck.model_dump_json(indent=2), encoding="utf-8")
             (run_dir / "deck.md").write_text(deck_to_markdown(deck), encoding="utf-8")
@@ -154,6 +169,6 @@ def build_graph(
     builder.add_edge(START, "plan")
     builder.add_edge("plan", "critic")
     builder.add_conditional_edges("critic", after_critic, {"plan": "plan", "approval": "approval"})
-    builder.add_edge("approval", "compile")
+    builder.add_conditional_edges("approval", after_approval, {"compile": "compile", "plan": "plan"})
     builder.add_edge("compile", END)
     return builder.compile(checkpointer=checkpointer or _asa_checkpointer())

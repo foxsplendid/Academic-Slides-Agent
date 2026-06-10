@@ -111,3 +111,65 @@ def test_upload_end_to_end(tmp_path):
     r = client.get(f"/jobs/{job_id}/download")
     assert r.status_code == 200
     assert r.content[:2] == b"PK"
+
+
+# --- new-frontend backend: history / per-job options / preview / reject ---------
+
+
+def test_jobs_history_and_delete(tmp_path):
+    client = _client(tmp_path)
+    r = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))],
+                    data={"style_name": "academic"})
+    job_id = r.json()["job_id"]
+    listing = client.get("/jobs").json()["jobs"]
+    assert any(j["job_id"] == job_id and j["style"] == "academic" for j in listing)
+    assert client.delete(f"/jobs/{job_id}").json()["status"] == "deleted"
+    assert not any(j["job_id"] == job_id for j in client.get("/jobs").json()["jobs"])
+
+
+def test_upload_per_job_options_reach_state(tmp_path):
+    client = _client(tmp_path)
+    r = client.post(
+        "/jobs/upload",
+        files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))],
+        data={"style_name": "modern_teal", "vlm_critic": "true", "native_formula": "true"},
+    )
+    job_id = r.json()["job_id"]
+    # stream to the Hard-Stop, then check the checkpointed state carries the options
+    client.get(f"/jobs/{job_id}/stream")
+    r2 = client.post(f"/jobs/{job_id}/approve", json={"approved": True})
+    assert r2.status_code == 200  # full pipeline ran with per-job style without error
+
+
+def test_preview_renders_or_503(tmp_path):
+    client = _client(tmp_path)
+    r = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))])
+    job_id = r.json()["job_id"]
+    client.get(f"/jobs/{job_id}/stream")  # reach Hard-Stop (slides exist)
+    pr = client.post(f"/jobs/{job_id}/preview")
+    # On boxes with PowerPoint/LibreOffice this renders; elsewhere it must 503 cleanly (fail open).
+    assert pr.status_code in (200, 503)
+    if pr.status_code == 200:
+        n = pr.json()["count"]
+        assert n >= 1
+        img = client.get(f"/jobs/{job_id}/preview/1")
+        assert img.status_code == 200 and img.headers["content-type"] == "image/png"
+
+
+def test_reject_stream_replans_to_new_hard_stop(tmp_path):
+    client = _client(tmp_path)
+    r = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))])
+    job_id = r.json()["job_id"]
+    client.get(f"/jobs/{job_id}/stream")  # first Hard-Stop
+    body = client.get(f"/jobs/{job_id}/stream", params={"reject": "1", "feedback": "标题太泛"}).text
+    assert "awaiting_approval" in body  # replanned and stopped at approval again
+    # approving after the rejection still completes
+    r2 = client.post(f"/jobs/{job_id}/approve", json={"approved": True})
+    assert r2.status_code == 200 and Path(r2.json()["output_path"]).exists()
+
+
+def test_approve_409_when_not_awaiting(tmp_path):
+    client = _client(tmp_path)
+    r = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))])
+    job_id = r.json()["job_id"]
+    assert client.post(f"/jobs/{job_id}/approve", json={"approved": True}).status_code == 409

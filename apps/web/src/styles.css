@@ -1,132 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1d1d1f;
+  font-family: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
 }
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
-  background: #f5f6f8;
+  @apply bg-slate-100 text-slate-900;
 }
-.app {
-  max-width: 760px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+
+html[data-theme="dark"] body {
+  @apply bg-slate-950 text-slate-100;
 }
-h1 {
-  margin-bottom: 0.2rem;
-}
-.sub {
-  color: #666;
-  margin-top: 0;
-}
-.card {
-  background: #fff;
-  border: 1px solid #e3e5e8;
-  border-radius: 10px;
-  padding: 1rem 1.2rem;
-  margin: 1rem 0;
-}
-h2 {
-  font-size: 1rem;
-  margin-top: 0;
-}
-button {
-  background: #003a70;
-  color: #fff;
-  border: 0;
-  border-radius: 6px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  margin-left: 0.5rem;
-}
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.stepper {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.step {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.3rem 0;
-  color: #999;
-}
-.step .dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  background: #e3e5e8;
-  color: #888;
-  font-size: 0.8rem;
-  flex: none;
-}
-.step.done {
-  color: #1d8a4e;
-}
-.step.done .dot {
-  background: #1d8a4e;
-  color: #fff;
-}
-.step.active {
-  color: #003a70;
-  font-weight: 600;
-}
-.step.active .dot {
-  background: #003a70;
-  color: #fff;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-.hint {
-  color: #555;
-  font-size: 0.9rem;
-  margin: 0.6rem 0 0;
-}
-.details summary {
-  cursor: pointer;
-  color: #666;
-  font-size: 0.85rem;
-}
-.log {
-  font-family: ui-monospace, "SFMono-Regular", monospace;
-  font-size: 0.85rem;
-  color: #444;
-}
-.outline {
-  line-height: 1.8;
-}
-.lt {
-  display: inline-block;
-  min-width: 140px;
-  color: #0077b6;
-  font-size: 0.78rem;
-}
-.download {
-  display: inline-block;
-  background: #003a70;
-  color: #fff;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  text-decoration: none;
-}
-.error {
-  color: #b00020;
-}
-.warn {
-  color: #9a6700;
-  background: #fff8e1;
-  border: 1px solid #ffe082;
-  border-radius: 6px;
-  padding: 0.4rem 0.6rem;
-  font-size: 0.88rem;
-  margin: 0.4rem 0 0;
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900;
+  }
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-primary-hover;
+  }
+  .btn-ghost {
+    @apply btn border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+  .field-label {
+    @apply mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400;
+  }
+  .field {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100;
+  }
 }
