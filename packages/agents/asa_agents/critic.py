@@ -122,6 +122,24 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
             findings.append(f"{tag}: layout '{s.layout_type.value}' but no figure block")
         if s.layout_type == LayoutType.TOC and "bullets" not in kinds:
             findings.append(f"{tag}: layout 'toc' but no bullets block (the agenda items)")
+        n_figs = sum(1 for b in s.blocks if b.type == "figure")
+        if s.layout_type == LayoutType.FIGURE_GRID and 0 < n_figs < 2:
+            findings.append(
+                f"{tag}: figure_grid 不足两张图({n_figs} 张)——改用 figure_caption/figure_left"
+            )
+        # sparseness: a content page that says almost nothing wastes a slide
+        n_bullets = sum(len(b.items) for b in s.blocks if b.type == "bullets")
+        heavies = sum(1 for b in s.blocks if b.type in _HEAVY_BLOCKS)
+        if (
+            s.layout_type not in (LayoutType.TOC, LayoutType.BIG_FIGURE, LayoutType.CANVAS)
+            and s.layout_type not in _STRUCTURAL_LAYOUTS
+            and s.blocks
+            and heavies == 0
+            and n_bullets <= 2
+        ):
+            findings.append(
+                f"{tag}: 内容过少(无图表且要点≤2 条)——依据证据充实到 4 条以上有实质的要点,或该页并入相邻页"
+            )
         # density: an overloaded page is always cramped; grids carry their figures by design
         if s.layout_type not in (LayoutType.FIGURE_GRID, LayoutType.TOC) and len(s.blocks) > MAX_BLOCKS_PER_SLIDE:
             findings.append(

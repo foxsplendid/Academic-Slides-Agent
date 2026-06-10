@@ -892,3 +892,37 @@ def test_no_breadcrumb_before_first_section(tmp_path):
     # only title + bullets + page number + accent bar; no stray empty breadcrumb box with text
     foots = [s for s in shapes if s.has_text_frame and s.top > Inches(6.8) and s.left < Inches(2) and s.text_frame.text.strip()]
     assert not foots
+
+
+def test_figure_bullets_callout_side_by_side_with_strip(tmp_path):
+    from slide_ir import CalloutBlock
+
+    img = _png(tmp_path / "f.png", 600, 400)
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(
+                slide_id="s",
+                layout_type=LayoutType.FIGURE_CAPTION,
+                title="组合页",
+                blocks=[
+                    FigureBlock(asset_id="i", caption="c"),
+                    BulletBlock(items=["p1", "p2", "p3"]),
+                    CalloutBlock(label="结论", text="要点"),
+                ],
+            )
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "combo.pptx", asset_resolver={"i": str(img)})
+    prs = Presentation(str(out))
+    slide = prs.slides[0]
+    pic = next(sh for sh in slide.shapes if sh.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    bullets = next(
+        sh for sh in slide.shapes if sh.has_text_frame and "p1" in sh.text_frame.text
+    )
+    callout = next(
+        sh for sh in slide.shapes if sh.has_text_frame and "要点" in sh.text_frame.text
+    )
+    assert pic.left > bullets.left  # figure right, text left (side by side, not stacked)
+    assert callout.top > pic.top  # takeaway strip across the bottom
+    assert callout.top + callout.height <= prs.slide_height

@@ -567,3 +567,19 @@ def test_invalid_canvas_retries_then_falls_back_to_bullets():
     llm = FakeLLM(_CANVAS_PLAN, bad, bad, bad, bullets)
     deck = build_deck_detailed(assets, tables, llm, premium=True)
     assert deck.slides[0].layout_type.value == "bullet_evidence"  # degraded, run not killed
+
+
+def test_rejection_feedback_triggers_full_replan():
+    from slide_ir import BulletBlock, LayoutType, SlideIR
+
+    prior = [
+        SlideIR(slide_id="s1", layout_type=LayoutType.BULLET_EVIDENCE, title="旧页", blocks=[BulletBlock(items=["a", "b", "c"])], speaker_notes="n"),
+    ]
+    assets, tables = _evidence()
+    llm = FakeLLM(_SKELETON, _SLIDE1, _SLIDE2)
+    deck = build_deck_detailed(assets, tables, llm, feedback=["用户退回大纲: 结构太散,按方法-结果重组"], prior_slides=prior)
+    # a full replan ran: skeleton + expansions, NOT a no-op patch of prior slides
+    assert len(llm.calls) == 3
+    assert "用户退回大纲" in llm.calls[0]["prompt"]
+    assert "上一稿大纲" in llm.calls[0]["prompt"]  # prior outline handed over as context
+    assert [s.title for s in deck.slides] != ["旧页"]

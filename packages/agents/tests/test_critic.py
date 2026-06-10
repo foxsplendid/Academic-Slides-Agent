@@ -37,7 +37,7 @@ def _clean_slides() -> list[SlideIR]:
             slide_id="s2",
             layout_type=LayoutType.BULLET_EVIDENCE,
             title="Motivation",
-            blocks=[BulletBlock(items=["a", "b"])],
+            blocks=[BulletBlock(items=["a", "b", "c", "→ d"])],
         ),
         SlideIR(
             slide_id="s3",
@@ -146,7 +146,7 @@ _CLEAN_DECK = json.dumps(
                 "slide_id": "s1",
                 "layout_type": "bullet_evidence",
                 "title": "M",
-                "blocks": [{"type": "bullets", "items": ["a", "b"]}],
+                "blocks": [{"type": "bullets", "items": ["a", "b", "c", "→ d"]}],
             }
         ],
     }

@@ -152,6 +152,24 @@ def _regions_for(s: SlideIR, content: Region, gap: int) -> Optional[list[Region]
         out[f_i], out[1 - f_i] = f_r, rest_r
         return out  # type: ignore[return-value]
 
+    # Major + bullets + takeaway strip: side-by-side on top, callout/stat band across the bottom.
+    # This is the most common academic composition (figure right, points left, conclusion below) —
+    # without it these pages fell into a cramped vertical stack.
+    if n == 3 and len(buls) == 1:
+        strips = [i for i, t in enumerate(types) if t in ("callout", "stat")]
+        majors = [i for i, t in enumerate(types) if t in _MAJOR_BLOCKS]
+        if len(strips) == 1 and len(majors) == 1:
+            top_r, strip_r = _vsplit(content, [0.8, 0.2], gap)
+            frac = 0.55 if types[majors[0]] == "table" else 0.58
+            major_left = lt in (LayoutType.FIGURE_LEFT, LayoutType.TWO_COLUMN_TABLE)
+            if major_left:
+                major_r, text_r = _hsplit(top_r, [frac, 1 - frac], gap)
+            else:
+                text_r, major_r = _hsplit(top_r, [1 - frac, frac], gap)
+            out: list[Optional[Region]] = [None, None, None]
+            out[majors[0]], out[buls[0]], out[strips[0]] = major_r, text_r, strip_r
+            return out  # type: ignore[return-value]
+
     # Side-by-side: one major block + one bullets column (the canonical academic composition).
     if n == 2 and len(buls) == 1 and types[1 - buls[0]] in _MAJOR_BLOCKS:
         major = 1 - buls[0]
