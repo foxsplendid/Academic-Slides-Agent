@@ -64,6 +64,12 @@ outline before compilation.
 
 ## Quickstart
 
+**One-click (Windows):** double-click [`start-dev.bat`](start-dev.bat) — it checks `.venv`/npm,
+installs frontend deps on first run, starts the backend (`:8000`) and the Vite dev server (`:5173`)
+in their own windows (reusing ones already running), and opens the browser.
+
+Manual setup:
+
 ```bash
 # editable install of the workspace packages
 pip install -e packages/core/ir -e packages/core/compiler -e packages/core/formula \
