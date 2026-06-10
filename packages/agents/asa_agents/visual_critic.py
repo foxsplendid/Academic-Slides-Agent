@@ -64,16 +64,20 @@ def _render_via_soffice(pptx: Path, out_dir: Path) -> Optional[list[Path]]:
 
 
 def _render_via_powerpoint_com(pptx: Path, out_dir: Path) -> Optional[list[Path]]:
-    """Windows dev-box fallback (PowerPoint COM via PowerShell). Never use server-side."""
+    """Windows dev-box fallback (PowerPoint COM via PowerShell). Never use server-side.
+
+    COM requires ABSOLUTE paths (its working directory is not ours); PowerShell also exits 0 on a
+    COM exception, so success is judged by the exported files, not the return code."""
     if sys.platform != "win32":
         return None
     script = (
+        "$ErrorActionPreference='Stop';"
         "$pp=New-Object -ComObject PowerPoint.Application;"
         f"$p=$pp.Presentations.Open('{pptx}', $true, $false, $false);"
         f"$p.Export('{out_dir}','PNG',1280,720);$p.Close();$pp.Quit()"
     )
     try:
-        subprocess.run(["powershell", "-NoProfile", "-Command", script], check=True, capture_output=True, timeout=180)
+        subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, timeout=180)
         pngs = sorted(out_dir.glob("*.PNG")) or sorted(out_dir.glob("*.png"))
         # PowerPoint names exports Slide1.PNG..SlideN.PNG — sort numerically.
         pngs.sort(key=lambda p: int(re.sub(r"\D", "", p.stem) or 0))
@@ -84,7 +88,7 @@ def _render_via_powerpoint_com(pptx: Path, out_dir: Path) -> Optional[list[Path]
 
 def render_pptx_images(pptx: str | Path, out_dir: str | Path) -> list[Path]:
     """Render every slide to PNG; [] when no renderer is available (the critic then skips)."""
-    pptx, out_dir = Path(pptx), Path(out_dir)
+    pptx, out_dir = Path(pptx).resolve(), Path(out_dir).resolve()  # COM/soffice need absolute paths
     out_dir.mkdir(parents=True, exist_ok=True)
     return _render_via_soffice(pptx, out_dir) or _render_via_powerpoint_com(pptx, out_dir) or []
 

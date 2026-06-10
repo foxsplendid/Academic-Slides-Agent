@@ -12,8 +12,10 @@ import json
 import os
 import re
 import shutil
+import threading
 import time
 import uuid
+from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
@@ -114,6 +116,7 @@ def create_app(
     jobs: dict[str, dict] = {}
     out_root = Path(out_dir)
     meta_dir = out_root / "meta"
+    preview_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)  # serialize per-job renders
 
     def cfg(job_id: str) -> dict:
         return {"configurable": {"thread_id": job_id}}
@@ -277,40 +280,53 @@ def create_app(
     @app.post("/jobs/{job_id}/preview")
     def build_preview(job_id: str):
         """Render the job's current deck (final out.pptx when present, else a draft compile of the
-        in-flight slides) into per-slide PNGs for the visual approval / result views."""
+        in-flight slides) into per-slide PNGs for the visual approval / result views. Serialized per
+        job (React dev double-mounts effects; concurrent renders would trample each other)."""
         from asa_agents.visual_critic import render_pptx_images
 
-        run_dir = out_root / "runs" / job_id
-        snap = None
-        try:
-            snap = graph.get_state(cfg(job_id))
-        except Exception:
-            pass
-        values = (snap.values if snap else None) or {}
-        out_path = _get(values, "output_path")
-        src: Optional[Path] = None
-        if out_path and Path(out_path).exists():
-            src = Path(out_path)
-        elif (run_dir / "out.pptx").exists():
-            src = run_dir / "out.pptx"
-        else:
-            slides = _get(values, "slides") or []
-            if not slides:
-                raise HTTPException(status_code=404, detail="nothing to preview yet")
-            from pptx_compiler import compile_deck
+        with preview_locks[job_id]:
+            try:
+                run_dir = out_root / "runs" / job_id
+                snap = None
+                try:
+                    snap = graph.get_state(cfg(job_id))
+                except Exception:
+                    pass
+                values = (snap.values if snap else None) or {}
+                out_path = _get(values, "output_path")
+                src: Optional[Path] = None
+                if out_path and Path(out_path).exists():
+                    src = Path(out_path)
+                elif (run_dir / "out.pptx").exists():
+                    src = run_dir / "out.pptx"
+                else:
+                    slides = _get(values, "slides") or []
+                    if not slides:
+                        raise HTTPException(status_code=404, detail="nothing to preview yet")
+                    from pptx_compiler import compile_deck
 
-            run_dir.mkdir(parents=True, exist_ok=True)
-            deck = Deck(deck_id=job_id, slides=slides)
-            evidence = _get(values, "evidence") or []
-            resolver = {a.asset_id: a.content_ref for a in evidence if _get(a, "kind") == "figure"}
-            src = run_dir / "preview.pptx"
-            compile_deck(deck, src, asset_resolver=resolver, style=_get(values, "style") or style)
-        png_dir = run_dir / "preview_png"
-        shutil.rmtree(png_dir, ignore_errors=True)
-        images = render_pptx_images(src, png_dir)
-        if not images:
-            raise HTTPException(status_code=503, detail="no slide renderer available (LibreOffice/PowerPoint)")
-        return {"job_id": job_id, "count": len(images)}
+                    run_dir.mkdir(parents=True, exist_ok=True)
+                    deck = Deck(deck_id=job_id, slides=slides)
+                    evidence = _get(values, "evidence") or []
+                    resolver = {a.asset_id: a.content_ref for a in evidence if _get(a, "kind") == "figure"}
+                    src = run_dir / "preview.pptx"
+                    compile_deck(deck, src, asset_resolver=resolver, style=_get(values, "style") or style)
+                png_dir = run_dir / "preview_png"
+                # Reuse a fresh render: PNGs newer than the source mean nothing changed.
+                pngs = _png_sorted(png_dir) if png_dir.is_dir() else []
+                if pngs and pngs[0].stat().st_mtime >= src.stat().st_mtime:
+                    return {"job_id": job_id, "count": len(pngs)}
+                shutil.rmtree(png_dir, ignore_errors=True)
+                images = render_pptx_images(src, png_dir)
+                if not images:
+                    raise HTTPException(
+                        status_code=503, detail="no slide renderer available (LibreOffice/PowerPoint)"
+                    )
+                return {"job_id": job_id, "count": len(images)}
+            except HTTPException:
+                raise
+            except Exception as err:  # surface as a JSON error WITH CORS headers (no opaque failures)
+                raise HTTPException(status_code=500, detail=f"preview failed: {err}") from err
 
     @app.get("/jobs/{job_id}/preview/{idx}")
     def get_preview(job_id: str, idx: int):
@@ -329,6 +345,17 @@ def create_app(
         )
         return {"job_id": job_id, "status": "done", "output_path": _get(final, "output_path")}
 
+    def _download_name(job_id: str) -> str:
+        """A human-readable filename: the paper title from job meta (sanitized), not the hex id."""
+        title = ""
+        try:
+            meta = json.loads((meta_dir / f"{job_id}.json").read_text(encoding="utf-8"))
+            title = (meta.get("title") or "").strip()
+        except Exception:
+            pass
+        title = re.sub(r'[\\/:*?"<>|]+', " ", title).strip()[:80]
+        return f"{title or job_id}.pptx"
+
     @app.get("/jobs/{job_id}/download")
     def download(job_id: str):
         out = None
@@ -342,6 +369,6 @@ def create_app(
             out = str(disk) if disk.exists() else None
         if not out:
             raise HTTPException(status_code=404, detail="deck not ready")
-        return FileResponse(out, filename=f"{job_id}.pptx", media_type=_PPTX_MIME)
+        return FileResponse(out, filename=_download_name(job_id), media_type=_PPTX_MIME)
 
     return app

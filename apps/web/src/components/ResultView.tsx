@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, Download, FilePlus2, Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Download, FilePlus2, Loader2, RefreshCcw, X } from "lucide-react";
 import { buildPreview, downloadUrl, previewUrl } from "../api";
 import { useStore } from "../store";
 
@@ -10,22 +10,28 @@ export function ResultView() {
   const [rendering, setRendering] = useState(true);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const renderBusy = useRef(false); // dedupe React StrictMode double-mounted effects
 
-  useEffect(() => {
-    let alive = true;
+  async function render() {
+    if (renderBusy.current) return;
+    renderBusy.current = true;
     setRendering(true);
     setRenderError(null);
-    buildPreview(run.jobId)
-      .then((n) => {
-        if (!alive) return;
-        setCount(n);
-        setBust(Date.now());
-      })
-      .catch((e) => alive && setRenderError(String((e as Error).message ?? e)))
-      .finally(() => alive && setRendering(false));
-    return () => {
-      alive = false;
-    };
+    try {
+      const n = await buildPreview(run.jobId);
+      setCount(n);
+      setBust(Date.now());
+    } catch (e) {
+      setRenderError(String((e as Error).message ?? e));
+    } finally {
+      renderBusy.current = false;
+      setRendering(false);
+    }
+  }
+
+  useEffect(() => {
+    void render();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run.jobId]);
 
   return (
@@ -52,7 +58,14 @@ export function ResultView() {
           <Loader2 className="h-5 w-5 animate-spin text-primary" /> 正在渲染成品预览…
         </div>
       )}
-      {renderError && <p className="text-sm text-amber-600 dark:text-amber-400">{renderError}(不影响下载)</p>}
+      {renderError && (
+        <p className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+          {renderError}(不影响下载)
+          <button className="btn-ghost px-2 py-1 text-xs" onClick={() => void render()}>
+            <RefreshCcw className="h-3.5 w-3.5" /> 重试预览
+          </button>
+        </p>
+      )}
 
       {!rendering && !renderError && (
         <section className="grid grid-cols-2 gap-3 md:grid-cols-3">

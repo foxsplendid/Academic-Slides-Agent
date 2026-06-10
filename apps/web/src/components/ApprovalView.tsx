@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCcw, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { approveJob, buildPreview, listJobs, previewUrl, streamJob } from "../api";
 import { useStore } from "../store";
 
@@ -13,8 +13,11 @@ export function ApprovalView() {
   const [feedback, setFeedback] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const [approving, setApproving] = useState(false);
+  const renderBusy = useRef(false); // dedupe React StrictMode double-mounted effects
 
   async function render() {
+    if (renderBusy.current) return;
+    renderBusy.current = true;
     setRendering(true);
     setRenderError(null);
     try {
@@ -24,6 +27,7 @@ export function ApprovalView() {
     } catch (e) {
       setRenderError(String((e as Error).message ?? e));
     } finally {
+      renderBusy.current = false;
       setRendering(false);
     }
   }
@@ -118,6 +122,9 @@ export function ApprovalView() {
         <div className="card border-amber-300 dark:border-amber-700">
           <p className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400">
             <AlertTriangle className="h-4 w-4" /> {renderError} —— 以下退化为文字大纲审批。
+            <button className="btn-ghost ml-2 px-2 py-1 text-xs" onClick={() => void render()}>
+              <RefreshCcw className="h-3.5 w-3.5" /> 重试预览
+            </button>
           </p>
           <ol className="mt-3 space-y-1.5">
             {run.outline.map((s, i) => (
