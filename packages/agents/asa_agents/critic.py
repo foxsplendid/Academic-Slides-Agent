@@ -82,8 +82,12 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
             findings.append(f"{tag}: layout 'formula_banner' but no formula block")
         if s.layout_type == LayoutType.TWO_COLUMN_TABLE and not (kinds & {"table", "chart", "diagram"}):
             findings.append(f"{tag}: layout 'two_column_table' but no table/chart/diagram block")
-        if s.layout_type == LayoutType.FIGURE_CAPTION and "figure" not in kinds:
-            findings.append(f"{tag}: layout 'figure_caption' but no figure block")
+        if (
+            s.layout_type
+            in (LayoutType.FIGURE_CAPTION, LayoutType.FIGURE_LEFT, LayoutType.BIG_FIGURE, LayoutType.FIGURE_GRID)
+            and "figure" not in kinds
+        ):
+            findings.append(f"{tag}: layout '{s.layout_type.value}' but no figure block")
 
         # Per-block overflow / reference checks.
         for b in s.blocks:

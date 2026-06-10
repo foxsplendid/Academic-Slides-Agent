@@ -260,8 +260,9 @@ def test_figure_gets_more_room_than_bullets(tmp_path):
     shapes = list(prs.slides[0].shapes)
     pic = next(sh for sh in shapes if sh.shape_type == MSO_SHAPE_TYPE.PICTURE)
     bullets = next(sh for sh in shapes if sh.has_text_frame and "a" in sh.text_frame.text)
-    # the figure region (square image fit) is taller than the bullets textbox
-    assert pic.height > bullets.height
+    # layout v2: figure_caption is side-by-side — the figure column gets the larger share (58%)
+    assert pic.left > bullets.left  # figure on the right
+    assert pic.width >= int(0.3 * prs.slide_width)  # figure column is generous
 
 
 def test_chart_block_renders_native_chart(tmp_path):
@@ -481,3 +482,151 @@ def test_balanced_fractions_table_not_capped():
 
     f = _balanced_fractions(["table", "bullets"])  # table is text-like, not a visual block
     assert abs(f[0] - 2 / 3) < 1e-9 and abs(f[1] - 1 / 3) < 1e-9
+
+
+# --- layout v2: multi-region templates ----------------------------------------
+
+
+def _one_px_png(tmp_path, name="f.png"):
+    img = tmp_path / name
+    img.write_bytes(_PNG_1x1)
+    return img
+
+
+def _slide_of(layout, blocks):
+    return Deck(deck_id="d", slides=[SlideIR(slide_id="s", layout_type=layout, title="t", blocks=blocks)])
+
+
+def _shapes_of(tmp_path, deck, resolver=None):
+    out = compile_deck(deck, tmp_path / "o.pptx", asset_resolver=resolver)
+    return list(Presentation(str(out)).slides[0].shapes)
+
+
+def test_figure_caption_renders_side_by_side(tmp_path):
+    img = _one_px_png(tmp_path)
+    deck = _slide_of(LayoutType.FIGURE_CAPTION, [FigureBlock(asset_id="f1"), BulletBlock(items=["a", "b"])])
+    shapes = _shapes_of(tmp_path, deck, {"f1": str(img)})
+    pic = next(s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    text = next(s for s in shapes if s.has_text_frame and "a" in s.text_frame.text)
+    assert pic.left > text.left  # figure on the RIGHT
+    assert pic.top < text.top + text.height and text.top < pic.top + pic.height  # vertically overlapping
+
+
+def test_figure_left_renders_figure_on_left(tmp_path):
+    img = _one_px_png(tmp_path)
+    deck = _slide_of(LayoutType.FIGURE_LEFT, [FigureBlock(asset_id="f1"), BulletBlock(items=["a"])])
+    shapes = _shapes_of(tmp_path, deck, {"f1": str(img)})
+    pic = next(s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    text = next(s for s in shapes if s.has_text_frame and "a" in s.text_frame.text)
+    assert pic.left + pic.width <= text.left + text.width and pic.left < text.left  # figure LEFT of text
+
+
+def test_figure_grid_2x2(tmp_path):
+    img = _one_px_png(tmp_path)
+    deck = _slide_of(LayoutType.FIGURE_GRID, [FigureBlock(asset_id=f"f{i}") for i in range(4)])
+    shapes = _shapes_of(tmp_path, deck, {f"f{i}": str(img) for i in range(4)})
+    pics = [s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE]
+    assert len(pics) == 4
+    assert len({p.left for p in pics}) == 2 and len({p.top for p in pics}) == 2  # 2 cols x 2 rows
+
+
+def test_two_column_table_table_left_text_right(tmp_path):
+    deck = _slide_of(
+        LayoutType.TWO_COLUMN_TABLE,
+        [TableBlock(columns=["A", "B"], rows=[["1", "2"]]), BulletBlock(items=["point"])],
+    )
+    shapes = _shapes_of(tmp_path, deck)
+    table = next(s for s in shapes if s.has_table)
+    text = next(s for s in shapes if s.has_text_frame and "point" in s.text_frame.text)
+    assert table.left < text.left  # table LEFT, takeaways RIGHT
+
+
+def test_text_only_slides_keep_vertical_stack(tmp_path):
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [BulletBlock(items=["a"]), BulletBlock(items=["b"])])
+    shapes = _shapes_of(tmp_path, deck)
+    boxes = [s for s in shapes if s.has_text_frame and s.text_frame.text in ("• a", "• b")]
+    assert len(boxes) == 2 and boxes[0].left == boxes[1].left  # stacked, same x
+
+
+# --- data graphics v1: styled charts + tables ----------------------------------
+
+
+def test_chart_series_use_palette_colors(tmp_path):
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [ChartBlock(chart_type="bar", categories=["a", "b", "c"], series=[ChartSeries(name="s", values=[1, 2, 3])])],
+    )
+    out = compile_deck(deck, tmp_path / "c.pptx")
+    chart = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_chart).chart
+    ser = chart.series[0]
+    from pptx_compiler.style import ACADEMIC
+
+    assert ser.format.fill.fore_color.rgb == ACADEMIC.chart_palette[0]  # palette applied
+    assert chart.plots[0].has_data_labels  # small single-series bar gets labels
+    assert chart.plots[0].gap_width == 60
+
+
+def test_chart_axis_fonts_styled(tmp_path):
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [ChartBlock(chart_type="line", categories=["a", "b"], series=[ChartSeries(name="x", values=[1, 2]), ChartSeries(name="y", values=[2, 1])])],
+    )
+    out = compile_deck(deck, tmp_path / "c2.pptx")
+    chart = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_chart).chart
+    from pptx.util import Pt as _Pt
+
+    assert chart.value_axis.tick_labels.font.size == _Pt(11)
+    assert chart.has_legend and chart.legend.font.size == _Pt(11)
+
+
+def test_table_header_fill_and_banding(tmp_path):
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [TableBlock(columns=["A", "B"], rows=[["1", "2"], ["3", "4"], ["5", "6"]])],
+    )
+    out = compile_deck(deck, tmp_path / "t.pptx")
+    table = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_table).table
+    from pptx_compiler.style import ACADEMIC
+
+    assert table.cell(0, 0).fill.fore_color.rgb == ACADEMIC.table_header_rgb  # header fill
+    assert table.cell(2, 0).fill.fore_color.rgb == ACADEMIC.table_band_rgb  # zebra on row 2
+    # header text is white
+    run = table.cell(0, 0).text_frame.paragraphs[0].runs[0]
+    from pptx.dml.color import RGBColor as _RGB
+
+    assert run.font.color.rgb == _RGB(0xFF, 0xFF, 0xFF)
+
+
+def test_table_highlight_cells(tmp_path):
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [TableBlock(columns=["A"], rows=[["x"], ["y"]], highlight={"cells": [[1, 0]]})],
+    )
+    out = compile_deck(deck, tmp_path / "t2.pptx")
+    table = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_table).table
+    from pptx_compiler.style import ACADEMIC
+
+    hot = table.cell(2, 0).text_frame.paragraphs[0].runs[0]  # data row 1 -> table row 2
+    assert hot.font.bold and hot.font.color.rgb == ACADEMIC.emphasis_rgb
+
+
+# --- theme v1: deck chrome ------------------------------------------------------
+
+
+def test_content_slide_has_accent_bar_and_page_number(tmp_path):
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [BulletBlock(items=["a"])])
+    out = compile_deck(deck, tmp_path / "chrome.pptx")
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    from pptx_compiler.style import ACADEMIC
+
+    rects = [s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE]
+    assert any(r.fill.fore_color.rgb == ACADEMIC.accent_rgb for r in rects)  # accent bar
+    assert any(s.has_text_frame and s.text_frame.text == "1" for s in shapes)  # page number
+
+
+def test_cover_has_no_page_number_but_has_rule(tmp_path):
+    deck = Deck(deck_id="d", slides=[SlideIR(slide_id="s", layout_type=LayoutType.TITLE, title="T")])
+    out = compile_deck(deck, tmp_path / "cover.pptx")
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    assert not any(s.has_text_frame and s.text_frame.text == "1" for s in shapes)  # no page no on cover
+    assert any(s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for s in shapes)  # centered rule

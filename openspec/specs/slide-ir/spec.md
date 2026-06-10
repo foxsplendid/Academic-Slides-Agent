@@ -91,3 +91,12 @@ request a logic diagram through the strict IR boundary.
 - **WHEN** a `diagram` block has an unknown `diagram_type` or no nodes
 - **THEN** the IR boundary rejects it
 
+### Requirement: Composition layout vocabulary
+The IR SHALL provide layout values for the recurring academic compositions: `figure_left` (figure
+left, text right), `two_content` (two blocks side by side), `figure_grid` (2-4 figures in a grid),
+and `big_figure` (one dominant figure), in addition to the existing layouts.
+
+#### Scenario: New layouts validate
+- **WHEN** a slide declares `layout_type: "figure_grid"`
+- **THEN** it passes IR validation
+

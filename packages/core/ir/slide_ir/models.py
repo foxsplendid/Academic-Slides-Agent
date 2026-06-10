@@ -24,7 +24,11 @@ class LayoutType(str, Enum):
     BULLET_EVIDENCE = "bullet_evidence"
     TWO_COLUMN_TABLE = "two_column_table"
     FORMULA_BANNER = "formula_banner"
-    FIGURE_CAPTION = "figure_caption"
+    FIGURE_CAPTION = "figure_caption"  # figure right, text left (figure-led)
+    FIGURE_LEFT = "figure_left"  # figure left, text right
+    TWO_CONTENT = "two_content"  # any two blocks side by side
+    FIGURE_GRID = "figure_grid"  # 2-4 figures in a grid
+    BIG_FIGURE = "big_figure"  # one dominant figure, minimal text
 
 
 # --------------------------------------------------------------------------- #

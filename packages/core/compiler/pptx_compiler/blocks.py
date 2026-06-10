@@ -108,18 +108,43 @@ def render_table(slide, block: TableBlock, region: Region, style: StyleProfile =
     n_rows = len(block.rows) + 1  # header + data
     graphic_frame = slide.shapes.add_table(n_rows, n_cols, left, top, width, height)
     table = graphic_frame.table
+    # `highlight` may mark cells {"cells": [[row, col], ...]} (data-row coordinates, 0-based).
+    marked = set()
+    if isinstance(block.highlight, dict):
+        for rc in block.highlight.get("cells", []):
+            if isinstance(rc, (list, tuple)) and len(rc) == 2:
+                marked.add((int(rc[0]), int(rc[1])))
 
+    white = RGBColor(0xFF, 0xFF, 0xFF)
     for c, name in enumerate(block.columns):
         cell = table.cell(0, c)
         cell.text = ""
-        add_rich_text(cell.text_frame.paragraphs[0], str(name), size=Pt(style.table_header_pt), bold=True, style=style)
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = style.table_header_rgb
+        add_rich_text(
+            cell.text_frame.paragraphs[0], str(name), size=Pt(style.table_header_pt), bold=True, style=style, color=white
+        )
 
     for r, row in enumerate(block.rows, start=1):
         for c in range(n_cols):
             cell = table.cell(r, c)
             cell.text = ""
+            if r % 2 == 0:  # zebra banding on even data rows
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = style.table_band_rgb
+            else:
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = white
             value = str(row[c]) if c < len(row) else ""
-            add_rich_text(cell.text_frame.paragraphs[0], value, size=Pt(style.table_body_pt), style=style)
+            hot = (r - 1, c) in marked
+            add_rich_text(
+                cell.text_frame.paragraphs[0],
+                value,
+                size=Pt(style.table_body_pt),
+                bold=hot,
+                style=style,
+                color=style.emphasis_rgb if hot else None,
+            )
 
     return graphic_frame
 
@@ -131,8 +156,75 @@ _CATEGORY_CHARTS = {
 }
 
 
-def render_chart(slide, block: ChartBlock, region: Region):
-    """Render a native, editable PowerPoint chart (not an image)."""
+def _style_chart(chart, block: ChartBlock, style: StyleProfile) -> None:
+    """Apply StyleProfile design tokens to a native chart (palette, fonts, labels, legend) so it
+    matches the deck instead of looking like a raw Office default. Best-effort: any sub-step that a
+    given chart type doesn't support is skipped."""
+    from pptx.enum.chart import XL_LABEL_POSITION, XL_LEGEND_POSITION
+
+    palette = style.chart_palette
+    n_points = max((len(s.values) for s in block.series), default=0)
+
+    for i, series in enumerate(chart.series):
+        color = palette[i % len(palette)]
+        try:
+            if block.chart_type == "pie":  # color each slice, not the series
+                for j, point in enumerate(series.points):
+                    point.format.fill.solid()
+                    point.format.fill.fore_color.rgb = palette[j % len(palette)]
+            elif block.chart_type in ("line", "scatter"):
+                series.format.line.color.rgb = color
+                series.format.line.width = Pt(2.25)
+            else:
+                series.format.fill.solid()
+                series.format.fill.fore_color.rgb = color
+        except Exception:
+            pass
+
+    # Data labels on small bar/pie charts (readable, not cluttered).
+    if block.chart_type in ("bar", "pie") and 0 < n_points <= 8 and len(block.series) == 1:
+        try:
+            plot = chart.plots[0]
+            plot.has_data_labels = True
+            labels = plot.data_labels
+            labels.font.size = Pt(style.chart_axis_pt)
+            labels.font.name = style.latin_font
+            if block.chart_type == "bar":
+                labels.position = XL_LABEL_POSITION.OUTSIDE_END
+        except Exception:
+            pass
+
+    if block.chart_type == "bar":
+        try:
+            chart.plots[0].gap_width = 60  # chunkier bars than the 150 default
+        except Exception:
+            pass
+
+    # Axis fonts + lighter gridlines (category charts; pie has no axes).
+    light = RGBColor(0xD9, 0xD9, 0xD9)
+    for axis_name in ("category_axis", "value_axis"):
+        try:
+            axis = getattr(chart, axis_name)
+            axis.tick_labels.font.size = Pt(style.chart_axis_pt)
+            axis.tick_labels.font.name = style.latin_font
+            if axis.has_major_gridlines:
+                axis.major_gridlines.format.line.color.rgb = light
+        except Exception:
+            pass
+
+    chart.has_legend = len(block.series) > 1 or block.chart_type == "pie"
+    if chart.has_legend:
+        try:
+            chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+            chart.legend.include_in_layout = False
+            chart.legend.font.size = Pt(style.chart_axis_pt)
+            chart.legend.font.name = style.latin_font
+        except Exception:
+            pass
+
+
+def render_chart(slide, block: ChartBlock, region: Region, style: StyleProfile = ACADEMIC):
+    """Render a native, editable PowerPoint chart (not an image), styled by the StyleProfile."""
     left, top, width, height = region
     if block.chart_type == "scatter":
         data = XyChartData()
@@ -156,7 +248,13 @@ def render_chart(slide, block: ChartBlock, region: Region):
     if block.title:
         chart.has_title = True
         chart.chart_title.text_frame.text = block.title
-    chart.has_legend = len(block.series) > 1 or block.chart_type == "pie"
+        try:
+            run = chart.chart_title.text_frame.paragraphs[0].runs[0]
+            run.font.size = Pt(style.table_header_pt)
+            run.font.name = style.ea_font
+        except Exception:
+            pass
+    _style_chart(chart, block, style)
     return frame
 
 
@@ -234,9 +332,10 @@ def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None
         except Exception:
             w, h = width, avail_h  # defensive (python-pptx already requires Pillow)
         x = left + (width - w) // 2
-        pic = slide.shapes.add_picture(str(candidate), x, top, width=w, height=h)
+        y = top + max(0, (avail_h - h) // 2)  # center vertically too (matters in side columns)
+        pic = slide.shapes.add_picture(str(candidate), x, y, width=w, height=h)
         if block.caption:
-            cap = slide.shapes.add_textbox(left, top + h, width, caption_h)
+            cap = slide.shapes.add_textbox(left, y + h, width, caption_h)
             cap.text_frame.word_wrap = True
             para = cap.text_frame.paragraphs[0]
             para.alignment = PP_ALIGN.CENTER
