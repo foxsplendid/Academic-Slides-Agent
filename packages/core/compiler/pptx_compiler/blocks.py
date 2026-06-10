@@ -120,7 +120,9 @@ def render_bullets(slide, block: BulletBlock, region: Region, style: StyleProfil
     tf = box.text_frame
     tf.word_wrap = True
     flat = _flat_bullets(block.items)
-    size_pt = _fit_font([t for t, _ in flat], width, height, base=style.body_pt)  # auto-shrink dense text
+    # 8% bottom safety margin: the estimator can undershoot on mixed CJK/Latin runs, and an
+    # overflowing textbox spills into the region below it (seen as text clipped by a callout).
+    size_pt = _fit_font([t for t, _ in flat], width, int(height * 0.92), base=style.body_pt)
     for i, (text, level) in enumerate(flat):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         sub = level > 0

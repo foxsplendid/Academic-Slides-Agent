@@ -494,7 +494,7 @@ def test_detail_level_reaches_prompts():
 
     llm.complete = spy
     build_deck_detailed(assets, tables, llm, detail="high", parallel=False)
-    assert any("12-16" in p for p in captured)  # skeleton got the page budget
+    assert any("12-15" in p for p in captured)  # skeleton got the content-page budget
     assert any("5-7" in p for p in captured)  # expansions got the bullet quota
 
 
