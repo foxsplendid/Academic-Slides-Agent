@@ -213,3 +213,12 @@ SHALL carry the same per-slide quotas and a chart-type selection taxonomy.
 - **WHEN** a deck is built with detail "high"
 - **THEN** the skeleton prompt carries the 12-16 page budget and expansions carry the 5-7 bullet quota
 
+### Requirement: Fail-open repair
+The repair pass SHALL enumerate the legal block vocabulary in its prompt, normalize high-frequency
+near-misses (a table's title becomes its caption) before validation, and keep the original slide when
+a repair exhausts its retries so the run always reaches the Hard-Stop.
+
+#### Scenario: Exhausted repair keeps the slide
+- **WHEN** a flagged slide's repair fails validation on every attempt
+- **THEN** the original slide is kept and generation proceeds to approval
+

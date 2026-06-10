@@ -52,6 +52,14 @@ def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str 
         except Exception:
             vision_llm = None
 
+    checkpointer = None
+    try:  # durable checkpoints: interrupted jobs survive a server restart (断点续跑)
+        from asa_agents.graph import durable_checkpointer
+
+        checkpointer = durable_checkpointer(Path(resolved_out) / "checkpoints.sqlite")
+    except Exception:
+        checkpointer = None  # fall back to in-memory (e.g. sqlite saver not installed)
+
     return create_app(
         llm,
         formula_renderer=formula_renderer,
@@ -59,4 +67,5 @@ def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str 
         planner=build_deck_detailed,
         style=os.environ.get("ASA_STYLE"),  # style profile name (default: academic)
         vision_llm=vision_llm,
+        checkpointer=checkpointer,
     )

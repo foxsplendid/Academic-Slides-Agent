@@ -94,8 +94,54 @@ def _png_sorted(folder: Path) -> list[Path]:
     return pngs
 
 
+class _JobRun:
+    """An in-memory, replayable event log for one background graph run. The SSE endpoint tails it,
+    so client disconnects never abort generation and reconnects replay from the start."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[str, dict]] = []
+        self.done = False
+        self.cond = threading.Condition()
+
+    def emit(self, event: str, data: dict) -> None:
+        with self.cond:
+            self.events.append((event, data))
+            self.cond.notify_all()
+
+    def finish(self) -> None:
+        with self.cond:
+            self.done = True
+            self.cond.notify_all()
+
+
+def _tail(run: _JobRun):
+    """Yield SSE frames from a run's event log: replay history, follow live, heartbeat when idle."""
+    idx = 0
+    while True:
+        with run.cond:
+            if idx >= len(run.events) and not run.done:
+                run.cond.wait(timeout=10.0)
+            has = idx < len(run.events)
+            done = run.done
+        if has:
+            event, data = run.events[idx]
+            idx += 1
+            yield _sse(event, data)
+        elif done:
+            return
+        else:
+            yield ": keepalive\n\n"  # SSE comment — defeats idle-connection timeouts
+
+
 def create_app(
-    llm, *, formula_renderer=None, out_dir: str | Path = "exports", planner=None, style=None, vision_llm=None
+    llm,
+    *,
+    formula_renderer=None,
+    out_dir: str | Path = "exports",
+    planner=None,
+    style=None,
+    vision_llm=None,
+    checkpointer=None,
 ) -> FastAPI:
     app = FastAPI(title="Academic-Slides-Agent API")
     _origins = [
@@ -112,14 +158,58 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    graph_kwargs = {"formula_renderer": formula_renderer, "out_dir": out_dir, "style": style, "vision_llm": vision_llm}
+    graph_kwargs = {
+        "formula_renderer": formula_renderer,
+        "out_dir": out_dir,
+        "style": style,
+        "vision_llm": vision_llm,
+        "checkpointer": checkpointer,
+    }
     if planner is not None:
         graph_kwargs["planner"] = planner
     graph = build_graph(llm, **graph_kwargs)
     jobs: dict[str, dict] = {}
     out_root = Path(out_dir)
     meta_dir = out_root / "meta"
+    states_dir = out_root / "states"  # persisted initial states: jobs survive a restart pre-stream too
     preview_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)  # serialize per-job renders
+    active_runs: dict[str, _JobRun] = {}
+
+    def _save_state(job_id: str, state: GenerationState) -> None:
+        try:
+            states_dir.mkdir(parents=True, exist_ok=True)
+            (states_dir / f"{job_id}.json").write_text(state.model_dump_json(), encoding="utf-8")
+        except Exception:
+            pass
+
+    def _load_state(job_id: str) -> Optional[dict]:
+        try:
+            return json.loads((states_dir / f"{job_id}.json").read_text(encoding="utf-8"))
+        except Exception:
+            return None
+
+    def _execute(job_id: str, run: _JobRun, stream_input) -> None:
+        try:
+            for mode, chunk in graph.stream(stream_input, cfg(job_id), stream_mode=["updates", "custom"]):
+                if mode == "custom":
+                    run.emit("progress", chunk.get("progress", chunk) if isinstance(chunk, dict) else {})
+                elif mode == "updates" and isinstance(chunk, dict) and "__interrupt__" not in chunk:
+                    run.emit("update", _progress(chunk))
+            snap = graph.get_state(cfg(job_id))
+            if "approval" in (snap.next or ()):
+                run.emit("awaiting_approval", {"outline": _get(snap.values, "outline")})
+            else:
+                run.emit("done", {"output_path": _get(snap.values, "output_path")})
+        except Exception as err:  # surface the real reason instead of a silent connection drop
+            run.emit("error", {"message": str(err)[:300]})
+        finally:
+            run.finish()
+
+    def _start_run(job_id: str, stream_input) -> _JobRun:
+        run = _JobRun()
+        active_runs[job_id] = run
+        threading.Thread(target=_execute, args=(job_id, run, stream_input), daemon=True).start()
+        return run
 
     def cfg(job_id: str) -> dict:
         return {"configurable": {"thread_id": job_id}}
@@ -144,17 +234,24 @@ def create_app(
             pass
 
     def _job_status(job_id: str) -> str:
+        live = active_runs.get(job_id)
+        if live is not None and not live.done:
+            return "running"
         try:
             snap = graph.get_state(cfg(job_id))
             if "approval" in (snap.next or ()):
                 return "awaiting_approval"
+            if snap.next:
+                return "interrupted"  # stranded mid-run; the stream endpoint resumes it
             if _get(snap.values, "output_path"):
                 return "done"
         except Exception:
             pass
         if (out_root / "runs" / job_id / "out.pptx").exists():
             return "done"
-        return "created" if job_id in jobs else "expired"
+        if job_id in jobs or (states_dir / f"{job_id}.json").exists():
+            return "created"
+        return "expired"
 
     @app.post("/jobs")
     def create_job(req: CreateJob):
@@ -168,6 +265,7 @@ def create_app(
             tables=(result.tables if result else []),
         )
         jobs[job_id] = state.model_dump()
+        _save_state(job_id, state)
         _write_meta(job_id, Path(req.inputs[0]).name if req.inputs else job_id, "", {})
         return {"job_id": job_id, "status": "created"}
 
@@ -211,6 +309,7 @@ def create_app(
             options=options,
         )
         jobs[job_id] = state.model_dump()
+        _save_state(job_id, state)
         title = Path(paths[0]).stem if paths else job_id
         _write_meta(job_id, title, style_name, options)
         return {
@@ -258,33 +357,45 @@ def create_app(
             pass
         return {"job_id": job_id, "status": "deleted"}
 
-    def _stream_events(iterator, job_id: str):
-        for mode, chunk in iterator:
-            if mode == "custom":
-                yield _sse("progress", chunk.get("progress", chunk) if isinstance(chunk, dict) else {})
-            elif mode == "updates" and isinstance(chunk, dict) and "__interrupt__" not in chunk:
-                yield _sse("update", _progress(chunk))
-        snap = graph.get_state(cfg(job_id))
-        if "approval" in (snap.next or ()):
-            yield _sse("awaiting_approval", {"outline": _get(snap.values, "outline")})
-        else:
-            yield _sse("done", {"output_path": _get(snap.values, "output_path")})
+    def _one_shot(event: str, data: dict):
+        def gen():
+            yield _sse(event, data)
+
+        return StreamingResponse(gen(), media_type="text/event-stream")
 
     @app.get("/jobs/{job_id}/stream")
     def stream(job_id: str, reject: bool = False, feedback: str = ""):
-        if reject:  # resume a pending Hard-Stop with a rejection: replan streams live over SSE
+        """Start, attach to, or resume a job's run. Execution is detached from this connection:
+        a dropped client never aborts generation, and reconnecting replays the event log."""
+        live = active_runs.get(job_id)
+        if live is not None and not live.done and not reject:
+            return StreamingResponse(_tail(live), media_type="text/event-stream")
+
+        snap = None
+        try:
             snap = graph.get_state(cfg(job_id))
-            if "approval" not in (snap.next or ()):
+        except Exception:
+            pass
+        nxt = (snap.next if snap else None) or ()
+
+        if reject:  # resume a pending Hard-Stop with a rejection: replan streams live over SSE
+            if "approval" not in nxt:
                 raise HTTPException(status_code=409, detail="job is not awaiting approval")
-            it = graph.stream(
-                Command(resume={"approved": False, "feedback": feedback}), cfg(job_id), stream_mode=["updates", "custom"]
-            )
-            return StreamingResponse(_stream_events(it, job_id), media_type="text/event-stream")
-        if job_id not in jobs:
+            run = _start_run(job_id, Command(resume={"approved": False, "feedback": feedback}))
+            return StreamingResponse(_tail(run), media_type="text/event-stream")
+        if "approval" in nxt:  # already at the Hard-Stop (e.g. after reconnect/restart)
+            return _one_shot("awaiting_approval", {"outline": _get(snap.values, "outline")})
+        if nxt:  # stranded mid-run (e.g. killed between nodes) -> resume from the last checkpoint
+            run = _start_run(job_id, None)
+            return StreamingResponse(_tail(run), media_type="text/event-stream")
+        if snap is not None and _get(snap.values, "output_path"):
+            return _one_shot("done", {"output_path": _get(snap.values, "output_path")})
+
+        initial = jobs.get(job_id) or _load_state(job_id)
+        if initial is None:
             raise HTTPException(status_code=404, detail="job not found")
-        initial = jobs[job_id]
-        it = graph.stream(initial, cfg(job_id), stream_mode=["updates", "custom"])
-        return StreamingResponse(_stream_events(it, job_id), media_type="text/event-stream")
+        run = _start_run(job_id, initial)
+        return StreamingResponse(_tail(run), media_type="text/event-stream")
 
     @app.post("/jobs/{job_id}/preview")
     def build_preview(job_id: str):

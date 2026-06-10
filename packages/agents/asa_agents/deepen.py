@@ -138,6 +138,17 @@ def _dedup_plans(plans: list[dict], *, ratio: float = 0.86) -> list[dict]:
     return kept
 
 
+def _normalize_blocks(d: dict) -> dict:
+    """Deterministic pre-validation cleanup of high-frequency LLM near-misses: a table's ``title``
+    becomes its ``caption`` (TableBlock has no title field; models add one constantly)."""
+    for b in d.get("blocks", []) or []:
+        if isinstance(b, dict) and b.get("type") == "table" and "title" in b:
+            title = b.pop("title")
+            if title and not b.get("caption"):
+                b["caption"] = title
+    return d
+
+
 def _fix_structural_layout(slide: SlideIR) -> SlideIR:
     """A divider (title/section) carrying content blocks is a misselection — relayout to bullets."""
     if slide.layout_type in _STRUCTURAL_LAYOUTS and any(b.type in _CONTENT_BLOCK_TYPES for b in slide.blocks):
@@ -201,7 +212,7 @@ def _expand_slide(
     for _ in range(max(1, max_attempts)):
         raw = llm.complete(prompt, system=EXPAND_SYSTEM)
         try:
-            d = json.loads(_extract_json(raw))
+            d = _normalize_blocks(json.loads(_extract_json(raw)))
             d.setdefault("slide_id", plan.get("slide_id") or "s")
             d.setdefault("layout_type", plan.get("layout_type") or "bullet_evidence")
             return _fix_structural_layout(SlideIR.model_validate(d))
@@ -213,7 +224,10 @@ def _expand_slide(
 
 _REPAIR_SYSTEM = """你在修正一页已生成的科研幻灯片。给你该页当前 JSON 和它的问题清单,请**只修复这些问题**,\
 保持该页主题、证据、术语、配图/图表/图件不变。重新输出**该页**合法 Slide-IR JSON(同 schema:slide_id/\
-layout_type/title/blocks/speaker_notes/provenance),不要解释、不要 markdown 围栏。"""
+layout_type/title/blocks/speaker_notes/provenance)。
+block 的 type **只能是**:bullets / figure / table / formula / chart / diagram / callout / stat,\
+不存在其它容器或栏位类型(版面由 layout_type 决定,不要发明 "column" 之类的块)。
+不要解释、不要 markdown 围栏。"""
 
 _SLIDE_REF = re.compile(r"slide '([^']+)'")
 
@@ -239,7 +253,7 @@ def _repair_slide(slide: SlideIR, findings: list[str], llm: LLM, *, max_attempts
     for _ in range(max(1, max_attempts)):
         raw = llm.complete(prompt, system=_REPAIR_SYSTEM)
         try:
-            d = json.loads(_extract_json(raw))
+            d = _normalize_blocks(json.loads(_extract_json(raw)))
             d.setdefault("slide_id", slide.slide_id)
             d.setdefault("layout_type", slide.layout_type.value)
             return _fix_structural_layout(SlideIR.model_validate(d))
@@ -283,7 +297,12 @@ def build_deck_detailed(
         _emit(progress, {"phase": "repair", "total": total})
         repaired: list[SlideIR] = []
         for i, s in enumerate(prior_slides):
-            repaired.append(_repair_slide(s, bad[s.slide_id], llm) if s.slide_id in bad else s)
+            if s.slide_id in bad:
+                try:
+                    s = _repair_slide(s, bad[s.slide_id], llm)
+                except IRBoundaryError:  # fail open: keep the original; the finding reaches the human
+                    _emit(progress, {"phase": "repair_kept_original", "slide_id": s.slide_id})
+            repaired.append(s)
             _emit(progress, {"phase": "slide", "done": i + 1, "total": total})
         return Deck(deck_id="deck", slides=repaired)
 

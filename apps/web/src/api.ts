@@ -26,7 +26,7 @@ export interface JobMeta {
   title: string;
   created_at: string;
   style: string;
-  status: "created" | "awaiting_approval" | "done" | "expired";
+  status: "created" | "running" | "interrupted" | "awaiting_approval" | "done" | "expired";
 }
 
 export interface GenOptions {
@@ -72,11 +72,14 @@ export function streamJob(
     ? `${API_BASE}/jobs/${jobId}/stream?reject=1&feedback=${encodeURIComponent(reject.feedback)}`
     : `${API_BASE}/jobs/${jobId}/stream`;
   const es = new EventSource(url);
+  let transportErrors = 0;
   es.addEventListener("update", (e) => {
+    transportErrors = 0;
     const data = JSON.parse((e as MessageEvent).data) as Record<string, { phase?: string }>;
     for (const [node, v] of Object.entries(data)) handlers.onUpdate(node, v.phase);
   });
   es.addEventListener("progress", (e) => {
+    transportErrors = 0;
     handlers.onProgress(JSON.parse((e as MessageEvent).data) as Progress);
   });
   es.addEventListener("awaiting_approval", (e) => {
@@ -89,10 +92,26 @@ export function streamJob(
     es.close();
     handlers.onDone(data.output_path);
   });
-  es.onerror = () => {
-    es.close();
-    handlers.onError("连接中断");
-  };
+  es.addEventListener("error", (e) => {
+    // A SERVER-emitted error event (generation failed) — terminal, carries the real reason.
+    const msg = (e as MessageEvent).data;
+    if (msg) {
+      es.close();
+      try {
+        handlers.onError((JSON.parse(msg) as { message: string }).message || "生成失败");
+      } catch {
+        handlers.onError("生成失败");
+      }
+      return;
+    }
+    // Transport-level error: generation continues server-side; EventSource auto-reconnects and the
+    // server replays the event log. Give up only after repeated failures.
+    transportErrors += 1;
+    if (transportErrors >= 4) {
+      es.close();
+      handlers.onError("连接中断 —— 任务仍在后台运行,可稍后从侧栏点击该任务继续");
+    }
+  });
   return () => es.close();
 }
 

@@ -17,9 +17,9 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 
-def _asa_checkpointer():
-    """A MemorySaver whose serializer registers our `slide_ir` types, so resuming a checkpoint emits
-    no 'unregistered type' warning and is not blocked by future strict-msgpack handling."""
+def _asa_serde():
+    """A serializer that registers our `slide_ir` types, so checkpoint resume emits no
+    'unregistered type' warning and is not blocked by strict-msgpack handling."""
     import enum
     import inspect
 
@@ -33,7 +33,23 @@ def _asa_checkpointer():
         for _, obj in inspect.getmembers(_m, inspect.isclass)
         if obj.__module__ == _m.__name__ and issubclass(obj, (BaseModel, enum.Enum))
     ]
-    return MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=allowed))
+    return JsonPlusSerializer(allowed_msgpack_modules=allowed)
+
+
+def _asa_checkpointer():
+    return MemorySaver(serde=_asa_serde())
+
+
+def durable_checkpointer(path: str | Path):
+    """A SQLite-backed checkpointer: graph state survives server restarts, so interrupted jobs can
+    resume from their last completed node (true 断点续跑)."""
+    import sqlite3
+
+    from langgraph.checkpoint.sqlite import SqliteSaver
+
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path), check_same_thread=False)  # SqliteSaver serializes via its own lock
+    return SqliteSaver(conn, serde=_asa_serde())
 
 from pptx_compiler import compile_deck, lint_compiled_deck
 from slide_ir import Deck, GenerationState, Phase

@@ -183,3 +183,50 @@ def test_png_sorted_dedupes_case_insensitive_glob(tmp_path):
     pngs = _png_sorted(tmp_path)
     assert len(pngs) == 3  # not 6 (Windows globs are case-insensitive)
     assert [p.stem for p in pngs] == ["Slide1", "Slide2", "Slide10"]  # numeric order
+
+
+# --- durable resume (断点续跑) ---------------------------------------------------
+
+
+def _sqlite_app(tmp_path):
+    from asa_agents.graph import durable_checkpointer
+
+    return TestClient(
+        create_app(
+            FakeLLM(_VALID_DECK),
+            out_dir=tmp_path,
+            checkpointer=durable_checkpointer(Path(tmp_path) / "ckpt.sqlite"),
+        )
+    )
+
+
+def test_approve_survives_server_restart(tmp_path):
+    """The restart test: reach the Hard-Stop on app1, 'restart' (new app, same disk), approve on app2."""
+    client1 = _sqlite_app(tmp_path)
+    r = client1.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))])
+    job_id = r.json()["job_id"]
+    body = client1.get(f"/jobs/{job_id}/stream").text
+    assert "awaiting_approval" in body
+
+    client2 = _sqlite_app(tmp_path)  # fresh process state, same sqlite + disk
+    listing = client2.get("/jobs").json()["jobs"]
+    assert any(j["job_id"] == job_id and j["status"] == "awaiting_approval" for j in listing)
+    r2 = client2.post(f"/jobs/{job_id}/approve", json={"approved": True})
+    assert r2.status_code == 200 and Path(r2.json()["output_path"]).exists()
+
+
+def test_stream_reopen_replays_awaiting_approval(tmp_path):
+    """A dropped client reconnects: re-opening the stream at the Hard-Stop replays the event."""
+    client = _client(tmp_path)
+    r = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))])
+    job_id = r.json()["job_id"]
+    assert "awaiting_approval" in client.get(f"/jobs/{job_id}/stream").text
+    assert "awaiting_approval" in client.get(f"/jobs/{job_id}/stream").text  # reconnect -> replay
+
+
+def test_generation_failure_emits_error_event(tmp_path):
+    client = TestClient(create_app(FakeLLM("never valid ir"), out_dir=tmp_path))
+    r = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))])
+    job_id = r.json()["job_id"]
+    body = client.get(f"/jobs/{job_id}/stream").text
+    assert "event: error" in body  # surfaced, not a silent connection drop

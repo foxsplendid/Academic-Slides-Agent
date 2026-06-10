@@ -502,3 +502,12 @@ def test_unknown_detail_falls_back_to_normal():
     from asa_agents.deepen import _detail_profile
 
     assert _detail_profile("nonsense") == _detail_profile("normal")
+
+
+def test_table_title_normalized_to_caption():
+    from asa_agents.deepen import _normalize_blocks
+
+    d = {"blocks": [{"type": "table", "title": "主要端元特征", "columns": ["a"], "rows": []}]}
+    out = _normalize_blocks(d)
+    b = out["blocks"][0]
+    assert "title" not in b and b["caption"] == "主要端元特征"

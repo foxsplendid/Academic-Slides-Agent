@@ -1,11 +1,14 @@
 import { CheckCircle2, Clock3, FilePlus2, Moon, Presentation, Sun, Trash2 } from "lucide-react";
 import { deleteJob, listJobs, type JobMeta } from "../api";
+import { followJob } from "../follow";
 import { useStore } from "../store";
 
-const STATUS_BADGE: Record<JobMeta["status"], { label: string; cls: string }> = {
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   done: { label: "完成", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300" },
   awaiting_approval: { label: "待审批", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" },
-  created: { label: "进行中", cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300" },
+  running: { label: "生成中", cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300" },
+  interrupted: { label: "已中断·可续", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300" },
+  created: { label: "待开始", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
   expired: { label: "已过期", cls: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400" },
 };
 
@@ -20,6 +23,14 @@ export function Sidebar() {
     if (job.status === "done") {
       patchRun({ jobId: job.job_id, title: job.title, outputPath: "disk", error: null });
       setView("result");
+    } else if (job.status === "awaiting_approval") {
+      patchRun({ jobId: job.job_id, title: job.title, error: null, stage: "review" });
+      setView("approval");
+    } else if (job.status === "running" || job.status === "interrupted" || job.status === "created") {
+      // attach to the live run / resume from the last checkpoint / start the pending job
+      patchRun({ jobId: job.job_id, title: job.title, error: null, log: [], stage: "outline" });
+      setView("generate");
+      followJob(job.job_id);
     }
   }
 

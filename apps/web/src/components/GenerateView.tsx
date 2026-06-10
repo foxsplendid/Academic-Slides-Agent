@@ -11,7 +11,8 @@ import {
   Table2,
   UploadCloud,
 } from "lucide-react";
-import { listJobs, streamJob, uploadJob } from "../api";
+import { listJobs, uploadJob } from "../api";
+import { followJob } from "../follow";
 import { useStore, type Stage } from "../store";
 
 const STAGES: { key: Stage; label: string }[] = [
@@ -25,7 +26,7 @@ const STAGES: { key: Stage; label: string }[] = [
 ];
 
 export function GenerateView() {
-  const { run, patchRun, appendLog, setView, setHistory } = useStore();
+  const { run, patchRun, appendLog, setHistory } = useStore();
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [styleName, setStyleName] = useState("academic");
@@ -50,24 +51,7 @@ export function GenerateView() {
       patchRun({ jobId: res.job_id, title: res.title, ingested: res.ingested, warnings: res.warnings, stage: "outline" });
       appendLog(`已摄取 ${res.ingested.files} 个文件 · ${res.ingested.text_pages} 页正文 · ${res.ingested.tables} 表 · ${res.ingested.figures} 图`);
       listJobs().then(setHistory);
-      streamJob(res.job_id, {
-        onUpdate: (node, phase) => appendLog(`节点 ${node}${phase ? ` · ${phase}` : ""}`),
-        onProgress: (p) => {
-          if (p.phase === "slide") patchRun({ stage: "generate", done: p.done ?? 0, total: p.total ?? 0 });
-          else if (p.phase.startsWith("skeleton")) patchRun({ stage: "outline", total: p.total ?? 0 });
-          else if (p.phase === "repair") patchRun({ stage: "critic" });
-          appendLog(p.total ? `${p.phase} ${p.done ?? ""}/${p.total}` : p.phase);
-        },
-        onAwaitingApproval: (outline) => {
-          patchRun({ outline, stage: "review", busy: false });
-          setView("approval");
-        },
-        onDone: (outputPath) => {
-          patchRun({ outputPath, stage: "done", busy: false });
-          setView("result");
-        },
-        onError: (msg) => patchRun({ error: msg, busy: false }),
-      });
+      followJob(res.job_id);
     } catch (e) {
       patchRun({ error: String(e), busy: false });
     }
