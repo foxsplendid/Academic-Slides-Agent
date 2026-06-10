@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Premium canvas planning and authoring
-When the premium option is set, the skeleton MAY plan canvas pages for the most valuable slides and
+When the premium option is set, the planner SHALL be allowed to plan canvas pages for the most valuable slides, and
 the expansion SHALL author them under the canvas contract (palette, fonts, line-per-text, evidence-
 only numbers) with guard-validated retries; an unfixable canvas SHALL degrade to a regular content
 page rather than fail the run.
