@@ -15,11 +15,12 @@ from slide_ir import EvidenceAsset, LayoutType, SlideIR
 
 # Thresholds — conservative on purpose; tune via a future OpenSpec change, not ad-hoc.
 MAX_TITLE_CHARS = 100
-MAX_BULLETS = 7
+MAX_BULLETS = 9
 MAX_BULLET_CHARS = 200
 MAX_TABLE_COLS = 6
 MAX_TABLE_ROWS = 12
 MIN_TITLE_SIM = 0.85  # >= this normalized-title similarity counts two slides as near-duplicates
+MAX_STAT_ITEMS = 4  # more cards than fit one row -> repair finding (schema no longer hard-rejects)
 MAX_LAYOUT_RUN = 3  # > this many consecutive content slides sharing one layout reads stamped-out
 
 # Layouts that carry no content blocks by design.
@@ -60,9 +61,9 @@ def _monotony_findings(slides: list[SlideIR]) -> list[str]:
     def flush() -> None:
         if len(run) > MAX_LAYOUT_RUN:
             mid = run[len(run) // 2]
-            out.append(
-                f"slide '{mid.slide_id}': {len(run)} consecutive slides share layout "
-                f"'{mid.layout_type.value}' — vary the composition (figure_left/two_content/big_figure/chart)"
+            out.append(  # advisory: reaches the human, does not consume the repair budget
+                f"layout monotony around {mid.slide_id}: {len(run)} consecutive slides share "
+                f"'{mid.layout_type.value}' — consider varying the composition"
             )
 
     for s in slides:
@@ -135,6 +136,9 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
                             f"{tag}: bullet item too long ({len(text)} > {MAX_BULLET_CHARS} chars)"
                         )
                         break
+            elif b.type == "stat":
+                if len(b.items) > MAX_STAT_ITEMS:
+                    findings.append(f"{tag}: stat block has {len(b.items)} items (> {MAX_STAT_ITEMS} fit one row)")
             elif b.type == "table":
                 if len(b.columns) > MAX_TABLE_COLS:
                     findings.append(

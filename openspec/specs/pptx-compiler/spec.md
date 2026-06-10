@@ -208,12 +208,12 @@ big-number cards styled by the profile.
 - **THEN** three cards render at distinct horizontal positions
 
 ### Requirement: TOC and ending rendering
-The compiler SHALL render a `toc` slide as a numbered agenda (accent number chips + section titles)
-and an `ending` slide as a centered closing divider in the deck theme.
+Agendas longer than seven items SHALL wrap to a second column; no agenda item is silently dropped
+within the supported range.
 
-#### Scenario: TOC renders numbered chips
-- **WHEN** a toc slide with four agenda items compiles
-- **THEN** four accent-colored numbered chips render beside the titles
+#### Scenario: Long agenda wraps
+- **WHEN** a toc slide carries nine items
+- **THEN** they render across two columns
 
 ### Requirement: Whitelisted icon rendering
 The compiler SHALL render card icons through an injectable resolver and SHALL skip unknown or

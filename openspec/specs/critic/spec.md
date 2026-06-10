@@ -72,10 +72,10 @@ emits IR-level suggestions. Both stages SHALL fail open (a check failure never b
 - **THEN** it is discarded
 
 ### Requirement: Layout monotony detection
-The critic SHALL flag more than three consecutive content slides sharing one layout as a
-repair-routable finding naming a slide inside the run; structural dividers and the TOC reset the run.
+Monotony findings SHALL be advisory (worded without the repair-routing token) so they inform the
+human at the Hard-Stop without consuming the bounded repair budget.
 
-#### Scenario: A five-slide run is flagged
-- **WHEN** five consecutive content slides share `bullet_evidence`
-- **THEN** a finding names a slide in the run and suggests varying the composition
+#### Scenario: Monotony does not burn retries
+- **WHEN** five consecutive slides share a layout and nothing else is wrong
+- **THEN** the deck reaches approval with the advisory finding attached
 

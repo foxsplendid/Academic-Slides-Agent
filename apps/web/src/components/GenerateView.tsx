@@ -34,7 +34,7 @@ export function GenerateView() {
   const [templates, setTemplates] = useState<CustomTemplate[]>([]);
   const tplInputRef = useRef<HTMLInputElement>(null);
   const [parser, setParser] = useState("auto");
-  const [detail, setDetail] = useState("normal");
+  const [detail, setDetail] = useState("auto");
   const [splitFigures, setSplitFigures] = useState(false);
 
   useEffect(() => {
@@ -168,9 +168,10 @@ export function GenerateView() {
           <div>
             <label className="field-label">详细程度</label>
             <select className="field" value={detail} onChange={(e) => setDetail(e.target.value)}>
-              <option value="brief">简洁(6-8 页,要点精简)</option>
-              <option value="normal">标准(8-12 页)</option>
-              <option value="high">详尽(12-16 页,深入展开)</option>
+              <option value="auto">自动(模型按论文内容自定页数,推荐)</option>
+              <option value="brief">简洁(约 5-7 内容页)</option>
+              <option value="normal">标准(约 8-11 内容页)</option>
+              <option value="high">详尽(约 12-15 内容页)</option>
             </select>
           </div>
         </div>

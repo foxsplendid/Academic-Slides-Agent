@@ -172,7 +172,7 @@ def parse_mineru_content_list(
                     kind="figure",
                     content_ref=str(dst),
                     source=source,
-                    locator={"page": page + 1, "caption": caption[:200]},
+                    locator={"page": page + 1, "caption": caption[:600]},
                 )
             )
             if os.environ.get("ASA_SPLIT_FIGURES", "").lower() in ("1", "true", "yes"):
@@ -185,7 +185,7 @@ def parse_mineru_content_list(
                             kind="figure",
                             content_ref=str(panel),
                             source=source,
-                            locator={"page": page + 1, "caption": caption[:200], "panel": j, "parent": parent_id},
+                            locator={"page": page + 1, "caption": caption[:600], "panel": j, "parent": parent_id},
                         )
                     )
 
@@ -253,7 +253,7 @@ def ingest_pdf_mineru(
         {
             "enable_formula": True,
             "enable_table": True,
-            "language": "en",
+            "language": os.environ.get("ASA_MINERU_LANG", "en"),
             "files": [{"name": path.name, "data_id": path.stem}],
         }
     ).encode()

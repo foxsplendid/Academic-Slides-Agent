@@ -204,14 +204,19 @@ stat blocks (evidence-grounded key numbers), and nested bullets for genuinely su
 - **THEN** the deck is acceptable without a final "→ " bullet
 
 ### Requirement: Deck-level design planning and density contracts
-The skeleton planner SHALL treat layout assignment as a deck-level design decision (structure pages,
-alternating figure sides, no long same-layout runs) and SHALL receive a quantified density contract
-(page budget, bullets and notes quotas) selected by the job's detail level; the expansion prompt
-SHALL carry the same per-slide quotas and a chart-type selection taxonomy.
+By default the planner SHALL decide the page count and per-slide density from the paper's content
+(one page per point worth a full treatment); explicit detail levels SHALL act as soft targets the
+model may exceed for content reasons. The skeleton SHALL assign figures as a list per slide so
+multi-figure layouts are expressible, and the expansion SHALL follow the skeleton's planned figure
+layout.
 
-#### Scenario: Detail level changes the quotas
-- **WHEN** a deck is built with detail "high"
-- **THEN** the skeleton prompt carries the 12-16 page budget and expansions carry the 5-7 bullet quota
+#### Scenario: Auto density
+- **WHEN** no detail level is chosen
+- **THEN** the prompts carry the model-decided density principle and no page quota
+
+#### Scenario: figure_grid carries its figures
+- **WHEN** the skeleton plans a figure_grid slide with three figure ids
+- **THEN** the expansion prompt lists all three with caption hints
 
 ### Requirement: Fail-open repair
 The repair pass SHALL enumerate the legal block vocabulary in its prompt, normalize high-frequency

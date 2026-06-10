@@ -80,12 +80,12 @@ def serialize_table(table: TableBlock, *, max_rows: int = 300, max_chars: int = 
 
 
 def _evidence_digest(
-    assets: list[EvidenceAsset], tables: list[TableBlock], *, max_chars: int = 12000
+    assets: list[EvidenceAsset], tables: list[TableBlock], *, max_chars: int = 24000
 ) -> str:
     lines: list[str] = []
     for asset in assets:
         if asset.kind == "section_text":
-            lines.append(f"[text @ {asset.source} {asset.locator}] {(asset.content_ref or '')[:1500]}")
+            lines.append(f"[text @ {asset.source} {asset.locator}] {(asset.content_ref or '')[:2500]}")
         elif asset.kind == "figure":
             cap = asset.locator.get("caption", "") if isinstance(asset.locator, dict) else ""
             lines.append(f"[figure @ {asset.source}] asset_id={asset.asset_id} — {cap}")
@@ -103,7 +103,7 @@ def _figure_ids(assets: list[EvidenceAsset]) -> list[str]:
     return [a.asset_id for a in assets if a.kind == "figure"]
 
 
-def figure_menu(assets: list[EvidenceAsset], *, cap_chars: int = 60) -> str:
+def figure_menu(assets: list[EvidenceAsset], *, cap_chars: int = 200) -> str:
     """One line per figure: ``asset_id —— caption…``, so the planner picks figures SEMANTICALLY
     (a bare id list once led it to illustrate a slide with an uncaptioned decorative image)."""
     lines = []
@@ -169,6 +169,6 @@ def build_outline(
                 base
                 + "\n\n你上一次的输出不是合法 JSON 或不符合 schema,报错如下;"
                 + "请只返回修正后的完整 JSON 对象,不要任何解释:\n"
-                + str(err)[:500]
+                + str(err)[:2000]
             )
     raise last_err  # type: ignore[misc]

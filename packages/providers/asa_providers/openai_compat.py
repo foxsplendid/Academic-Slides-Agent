@@ -23,7 +23,8 @@ class OpenAICompatibleLLM:
         client=None,
     ) -> None:
         self.model = model or os.environ.get("ASA_OPENAI_MODEL", "gpt-4o-mini")
-        self.temperature = temperature
+        env_t = os.environ.get("ASA_TEMPERATURE")
+        self.temperature = float(env_t) if env_t else temperature
         env_mt = os.environ.get("ASA_MAX_TOKENS")  # cap runaway decode (latency); default unset
         self.max_tokens = max_tokens if max_tokens is not None else (int(env_mt) if env_mt and env_mt.isdigit() else None)
         if client is not None:

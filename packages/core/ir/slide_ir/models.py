@@ -94,7 +94,7 @@ class StatBlock(_BlockBase):
     """1-4 key numbers as big-number cards in a row."""
 
     type: Literal["stat"] = "stat"
-    items: list[StatItem] = Field(min_length=1, max_length=4)
+    items: list[StatItem] = Field(min_length=1)
 
 
 class FigureBlock(_BlockBase):

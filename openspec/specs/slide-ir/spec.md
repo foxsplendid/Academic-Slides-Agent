@@ -101,12 +101,12 @@ and `big_figure` (one dominant figure), in addition to the existing layouts.
 - **THEN** it passes IR validation
 
 ### Requirement: Rich content blocks
-The IR SHALL support one level of bullet nesting (`BulletItem` with children), a `callout` block
-(labelled takeaway text), and a `stat` block (1-4 value/label items), all validated strictly.
+Stat blocks SHALL accept any number of items at the schema level (at least one); row-fit limits are
+enforced by the critic as repairable findings rather than hard schema rejections.
 
-#### Scenario: Nested bullets validate
-- **WHEN** a bullets block mixes plain strings and a BulletItem with children
-- **THEN** it passes IR validation
+#### Scenario: Oversized stat row routes to repair
+- **WHEN** a stat block carries five items
+- **THEN** the deck validates and the critic flags the slide for repair
 
 ### Requirement: Structural narrative layouts
 The IR SHALL provide `toc` (agenda) and `ending` (closing) layout values; `ending` SHALL be a

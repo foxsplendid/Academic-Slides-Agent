@@ -231,11 +231,16 @@ def _render_toc(slide, s: SlideIR, content: Region, style: StyleProfile) -> None
     if not items:
         return
     left, top, width, height = content
-    row_h = min(int(Inches(0.85)), height // max(len(items), 1))
+    two_col = len(items) > 7  # long agendas wrap to a second column instead of silent truncation
+    col_w = (width - int(Inches(0.4))) // 2 if two_col else width
+    per_col = (len(items) + 1) // 2 if two_col else len(items)
+    row_h = min(int(Inches(0.85)), height // max(per_col, 1))
     chip = int(Inches(0.5))
-    for i, text in enumerate(items[:10]):
-        y = top + i * row_h
-        c = slide.shapes.add_shape(MSO_SHAPE.OVAL, left, y + (row_h - chip) // 2, chip, chip)
+    for i, text in enumerate(items[:14]):
+        col = i // per_col if two_col else 0
+        left_i = left + col * (col_w + int(Inches(0.4)))
+        y = top + (i % per_col if two_col else i) * row_h
+        c = slide.shapes.add_shape(MSO_SHAPE.OVAL, left_i, y + (row_h - chip) // 2, chip, chip)
         c.fill.solid()
         c.fill.fore_color.rgb = style.accent_rgb
         c.line.fill.background()
@@ -248,7 +253,7 @@ def _render_toc(slide, s: SlideIR, content: Region, style: StyleProfile) -> None
         run.font.bold = True
         run.font.name = style.latin_font
         run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-        box = slide.shapes.add_textbox(left + chip + int(Inches(0.3)), y, width - chip - int(Inches(0.3)), row_h)
+        box = slide.shapes.add_textbox(left_i + chip + int(Inches(0.3)), y, col_w - chip - int(Inches(0.3)), row_h)
         box.text_frame.word_wrap = True
         box.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
         para = box.text_frame.paragraphs[0]

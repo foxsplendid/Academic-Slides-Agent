@@ -107,7 +107,7 @@ def build_graph(
             feedback=feedback,
             progress=progress,
             prior_slides=prior,
-            detail=state.options.get("detail", "normal"),
+            detail=state.options.get("detail", "auto"),
         )
         outline = [
             {"slide_id": s.slide_id, "layout_type": s.layout_type.value, "title": s.title}

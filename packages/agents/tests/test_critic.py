@@ -93,7 +93,7 @@ def test_each_defect_is_flagged():
             slide_id="bul",
             layout_type=LayoutType.BULLET_EVIDENCE,
             title="x",
-            blocks=[BulletBlock(items=[str(i) for i in range(8)] )],
+            blocks=[BulletBlock(items=[str(i) for i in range(11)] )],
         ),
         # table overflow (7 cols, 13 rows)
         SlideIR(
@@ -132,7 +132,7 @@ _DEFECT_DECK = json.dumps(
                 "slide_id": "s1",
                 "layout_type": "bullet_evidence",
                 "title": "M",
-                "blocks": [{"type": "bullets", "items": [str(i) for i in range(9)]}],
+                "blocks": [{"type": "bullets", "items": [str(i) for i in range(11)]}],
             }
         ],
     }
@@ -239,8 +239,8 @@ def _content_slide(i, layout=LayoutType.BULLET_EVIDENCE):
 def test_layout_monotony_flagged():
     slides = [_content_slide(i) for i in range(5)]  # 5 consecutive bullet_evidence
     findings = critique_deck(slides, [])
-    hit = [f for f in findings if "consecutive slides share layout" in f]
-    assert hit and "slide '" in hit[0]  # repair-routable, names a slide in the run
+    hit = [f for f in findings if "consecutive slides share" in f]
+    assert hit and "slide '" not in hit[0]  # advisory: reaches the human, never burns the repair budget
 
 
 def test_layout_variety_not_flagged():

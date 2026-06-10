@@ -276,7 +276,7 @@ def create_app(
         files: list[UploadFile] = File(default=[]),
         style_name: str = Form(default=""),
         parser: str = Form(default=""),
-        detail: str = Form(default="normal"),
+        detail: str = Form(default="auto"),
         split_figures: bool = Form(default=False),
         vlm_critic: bool = Form(default=False),
         native_formula: bool = Form(default=False),
@@ -301,7 +301,7 @@ def create_app(
             "vlm_critic": vlm_critic,
             "native_formula": native_formula,
             "split_figures": split_figures,
-            "detail": (detail or "normal").lower(),
+            "detail": (detail or "auto").lower(),
         }
         state = GenerationState(
             job_id=job_id,

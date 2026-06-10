@@ -379,11 +379,11 @@ def test_expand_evidence_cap_adaptive():
     plain = {"slide_id": "s", "layout_type": "bullet_evidence", "title": "t", "focus": "f", "evidence_pages": [1]}
     llm = _CaptureLLM()
     _expand_slide(plain, ev, {}, llm)
-    assert llm.prompt.count("字") <= 3850  # plain bullet slide -> tighter cap
+    assert llm.prompt.count("字") <= 6050  # plain bullet slide -> tighter cap
 
     fig = {**plain, "figure_id": "x"}
     _expand_slide(fig, ev, {"x": "caption"}, llm)
-    assert 3850 < llm.prompt.count("字") <= 6050  # figure slide keeps full context
+    assert 6050 < llm.prompt.count("字") <= 9050  # figure slide keeps full context
 
 
 def test_expand_workers_env_limits_concurrency(monkeypatch):
@@ -498,10 +498,12 @@ def test_detail_level_reaches_prompts():
     assert any("5-7" in p for p in captured)  # expansions got the bullet quota
 
 
-def test_unknown_detail_falls_back_to_normal():
+def test_unknown_detail_falls_back_to_auto():
     from asa_agents.deepen import _detail_profile
 
-    assert _detail_profile("nonsense") == _detail_profile("normal")
+    assert _detail_profile("nonsense") is None  # auto: model-decided density
+    assert _detail_profile("auto") is None
+    assert _detail_profile("high") is not None  # explicit levels remain available
 
 
 def test_table_title_normalized_to_caption():

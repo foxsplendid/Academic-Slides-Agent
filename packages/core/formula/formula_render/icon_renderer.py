@@ -44,8 +44,12 @@ class IconRenderer:
         return bool(shutil.which(node)) and _ICON_JS.is_file() and _ICONS_DIR.is_dir()
 
     def render(self, name: str, color_hex: str = "#333333", size_px: int = 64) -> Optional[Path]:
-        if name not in ICON_WHITELIST:
+        # Open vocabulary: any installed Tabler outline icon renders; unknown names fail open. The
+        # static ICON_WHITELIST remains only as prompt examples / corpus-absent fallback.
+        safe = "".join(ch for ch in name if ch.isalnum() or ch == "-")
+        if not safe or not (_ICONS_DIR / f"{safe}.svg").is_file():
             return None
+        name = safe
         key = hashlib.sha1(f"{name}|{color_hex}|{size_px}".encode()).hexdigest()[:14]
         out = self.out_dir / f"icon_{key}.png"
         if out.is_file():
