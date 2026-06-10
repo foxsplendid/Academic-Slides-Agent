@@ -54,3 +54,8 @@ included). Local modifications are listed in packages/vendor/svg2pptx/README.md.
 Optional raster-fallback deps (lazily imported, not required for the vector path):
 svglib (LGPL-3.0 — used unmodified as a library, isolated behind an optional import) and
 reportlab (BSD).
+
+## Vendored: canvas exemplars (packages/agents/asa_agents/canvas_exemplars)
+12 full-page SVG composition exemplars from the same MIT snapshot of CRui5in/paper-ppt-agent
+(commit 6f679fc, MIT License, Copyright (c) 2026 CRui5in). Used as few-shot style references for
+the premium canvas authoring prompt.

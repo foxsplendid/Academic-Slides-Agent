@@ -52,7 +52,7 @@ export function GenerateView() {
     }
   }
   const [vlmCritic, setVlmCritic] = useState(false);
-  const [premium, setPremium] = useState(false);
+  const [premium, setPremium] = useState(true);
   const [nativeFormula, setNativeFormula] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -180,7 +180,7 @@ export function GenerateView() {
           {[
             { label: "大图二次切割", desc: "复合图拆为子面板", val: splitFigures, set: setSplitFigures },
             { label: "VLM 视觉评审", desc: "渲染后视觉缺陷检查", val: vlmCritic, set: setVlmCritic },
-            { label: "精品档(实验)", desc: "关键页 LLM 自由构图,导出仍为可编辑矢量", val: premium, set: setPremium },
+            { label: "精品档", desc: "关键页自由构图(默认开;关闭则全用确定性版式)", val: premium, set: setPremium },
             { label: "原生公式(实验)", desc: "简单公式可编辑 OMML", val: nativeFormula, set: setNativeFormula },
           ].map((t) => (
             <label

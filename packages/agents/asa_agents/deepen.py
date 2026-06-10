@@ -257,6 +257,15 @@ def _expand_slide(
     is_canvas = (plan.get("layout_type") or "") == "canvas"
     system = CANVAS_SYSTEM if is_canvas else EXPAND_SYSTEM
     attempts = max_attempts + 1 if is_canvas else max_attempts  # SVG authoring earns one extra try
+    if is_canvas:
+        from .exemplars import pick_exemplar
+
+        ex = pick_exemplar(plan.get("title"), plan.get("focus"))
+        if ex:
+            base += (
+                f"\n\n构图范例(类型:{ex[0]};**仅参考布局与表达手法**——配色换成本提示规定的调色板,"
+                f"文字与数据一律来自上面的证据,不要照抄范例内容):\n{ex[1]}"
+            )
     prompt = base
     last: Optional[Exception] = None
     for _ in range(max(1, attempts)):
@@ -286,10 +295,13 @@ def _canvas_issues(slide: SlideIR) -> list[str]:
     if len(canvas_blocks) != 1:
         return ["canvas 页必须且只能有一个 canvas block"]
     try:
-        from pptx_compiler import validate_canvas_svg
+        from pptx_compiler import lint_canvas_svg, validate_canvas_svg
     except Exception:
         return []
-    return validate_canvas_svg(canvas_blocks[0].svg)
+    issues = validate_canvas_svg(canvas_blocks[0].svg)
+    if not issues:  # geometry lint only once the canvas is structurally valid
+        issues = lint_canvas_svg(canvas_blocks[0].svg)
+    return issues
 
 
 _REPAIR_SYSTEM = """你在修正一页已生成的科研幻灯片。给你该页当前 JSON 和它的问题清单,请**只修复这些问题**,\
@@ -354,7 +366,7 @@ def build_deck_detailed(
     max_workers: Optional[int] = None,
     prior_slides: Optional[list[SlideIR]] = None,
     detail: str = "auto",
-    premium: bool = False,
+    premium: bool = True,
 ) -> Deck:
     """Skeleton -> per-slide focused expansion -> assembled Deck (validated by the IR boundary).
 

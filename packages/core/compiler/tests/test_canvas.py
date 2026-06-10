@@ -65,3 +65,20 @@ def test_invalid_canvas_falls_back_without_breaking_deck(tmp_path):
     )
     out = compile_deck(deck, tmp_path / "b.pptx")
     assert len(Presentation(str(out)).slides) == 1  # deck still ships; invalid canvas is not injected
+
+
+def test_canvas_lint_flags_overflow_and_overlap():
+    from pptx_compiler import lint_canvas_svg
+
+    overflow = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">'
+        '<text x="1100" y="100" font-size="24">这一行中文文本特别长肯定会冲出画布的右边界没有悬念</text></svg>'
+    )
+    assert any("边界" in f for f in lint_canvas_svg(overflow))
+    overlap = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">'
+        '<text x="100" y="100" font-size="20">第一段重叠文本内容</text>'
+        '<text x="120" y="105" font-size="20">第二段重叠文本内容</text></svg>'
+    )
+    assert any("重叠" in f for f in lint_canvas_svg(overlap))
+    assert lint_canvas_svg(_OK) == []

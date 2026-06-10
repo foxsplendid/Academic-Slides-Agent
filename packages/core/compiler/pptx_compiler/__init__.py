@@ -1,6 +1,6 @@
 """pptx_compiler — deterministic Slide-IR -> native .pptx rendering."""
 
-from .canvas import canvas_engine_available, validate_canvas_svg
+from .canvas import canvas_engine_available, lint_canvas_svg, validate_canvas_svg
 from .compiler import compile_deck
 from .formula_renderer import FormulaRenderer, NullFormulaRenderer
 from .lint import lint_compiled_deck
@@ -10,6 +10,7 @@ from .template_import import extract_style_from_pptx, import_template, profile_f
 __all__ = [
     "compile_deck",
     "validate_canvas_svg",
+    "lint_canvas_svg",
     "canvas_engine_available",
     "lint_compiled_deck",
     "FormulaRenderer",

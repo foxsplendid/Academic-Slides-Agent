@@ -158,9 +158,10 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
                 findings.append(f"{tag}: layout 'canvas' must carry exactly one canvas block")
             else:
                 try:
-                    from pptx_compiler import validate_canvas_svg
+                    from pptx_compiler import lint_canvas_svg, validate_canvas_svg
 
-                    for issue in validate_canvas_svg(canvas_blocks[0].svg):
+                    issues = validate_canvas_svg(canvas_blocks[0].svg) or lint_canvas_svg(canvas_blocks[0].svg)
+                    for issue in issues:
                         findings.append(f"{tag}: {issue}")
                 except Exception:
                     pass

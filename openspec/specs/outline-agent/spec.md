@@ -236,16 +236,11 @@ results/validation/discussion chapter SHALL include at least one figure- or char
 - **THEN** the prompt budgets 8-11 content pages with structure pages explicitly excluded
 
 ### Requirement: Premium canvas planning and authoring
-When the premium option is set, the planner SHALL be allowed to plan canvas pages for the most valuable slides, and
-the expansion SHALL author them under the canvas contract (palette, fonts, line-per-text, evidence-
-only numbers) with guard-validated retries; an unfixable canvas SHALL degrade to a regular content
-page rather than fail the run.
+The premium tier SHALL be the default; canvas authoring SHALL receive a matching composition
+exemplar when one fits the slide intent, and canvas results SHALL pass both the safety guard and
+the geometry lint before acceptance.
 
-#### Scenario: Canvas plan routes to the canvas prompt
-- **WHEN** a premium skeleton plans a canvas slide
-- **THEN** its expansion uses the canvas authoring system prompt and the result passes the guard
-
-#### Scenario: Unfixable canvas degrades
-- **WHEN** every canvas attempt fails the guard
-- **THEN** the slide is regenerated as a bullet-evidence page
+#### Scenario: Exemplar reaches the authoring prompt
+- **WHEN** a canvas slide's focus mentions correlation
+- **THEN** the scatter exemplar is injected as a style reference
 

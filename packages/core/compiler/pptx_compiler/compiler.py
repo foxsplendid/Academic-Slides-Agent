@@ -152,38 +152,58 @@ def _regions_for(s: SlideIR, content: Region, gap: int) -> Optional[list[Region]
         out[f_i], out[1 - f_i] = f_r, rest_r
         return out  # type: ignore[return-value]
 
-    # Major + bullets + takeaway strip: side-by-side on top, callout/stat band across the bottom.
-    # This is the most common academic composition (figure right, points left, conclusion below) —
-    # without it these pages fell into a cramped vertical stack.
-    if n == 3 and len(buls) == 1:
-        strips = [i for i, t in enumerate(types) if t in ("callout", "stat")]
-        majors = [i for i, t in enumerate(types) if t in _MAJOR_BLOCKS]
-        if len(strips) == 1 and len(majors) == 1:
-            top_r, strip_r = _vsplit(content, [0.8, 0.2], gap)
-            frac = 0.55 if types[majors[0]] == "table" else 0.58
-            major_left = lt in (LayoutType.FIGURE_LEFT, LayoutType.TWO_COLUMN_TABLE)
-            if major_left:
-                major_r, text_r = _hsplit(top_r, [frac, 1 - frac], gap)
+    # ---- general compositor ------------------------------------------------------------------
+    # Any composition of majors (figure/chart/diagram/table), bullets, and light bands (stat tops,
+    # callout bottoms) gets a designed arrangement. This replaces the old "no template matched ->
+    # cramped vertical stack" failure mode that users kept hitting.
+    stats = [i for i, t in enumerate(types) if t == "stat"]
+    calls = [i for i, t in enumerate(types) if t == "callout"]
+    majors = [i for i, t in enumerate(types) if t in _MAJOR_BLOCKS]
+    texts = list(buls)
+    placed = set(stats) | set(calls) | set(majors) | set(texts)
+    if len(placed) == n and (majors or texts) and len(stats) <= 1 and len(calls) <= 1:
+        out: list[Optional[Region]] = [None] * n
+        core = content
+        if stats:  # headline numbers band on top
+            band, core = _vsplit(core, [0.24, 0.76], gap)
+            out[stats[0]] = band
+        if calls:  # takeaway band at the bottom
+            core, band = _vsplit(core, [0.8, 0.2], gap)
+            out[calls[0]] = band
+        if majors and texts:
+            if len(majors) == 1:
+                major_left = lt in (LayoutType.FIGURE_LEFT, LayoutType.TWO_COLUMN_TABLE)
+                frac = 0.55 if types[majors[0]] == "table" else 0.58
+                if major_left:
+                    major_r, text_r = _hsplit(core, [frac, 1 - frac], gap)
+                else:
+                    text_r, major_r = _hsplit(core, [1 - frac, frac], gap)
+                out[majors[0]] = major_r
+                for t_i in texts:  # multiple bullets columns stack within the text column
+                    out[t_i] = text_r if len(texts) == 1 else None
+                if len(texts) > 1:
+                    for t_i, r in zip(texts, _vsplit(text_r, [1 / len(texts)] * len(texts), gap)):
+                        out[t_i] = r
+            else:  # several visuals: grid them on top, points below
+                top_r, text_r = _vsplit(core, [0.62, 0.38], gap)
+                for m_i, r in zip(majors, _grid_regions(top_r, min(len(majors), 4), gap)):
+                    out[m_i] = r
+                for t_i, r in zip(texts, _vsplit(text_r, [1 / len(texts)] * len(texts), gap)):
+                    out[t_i] = r
+        elif majors:
+            for m_i, r in zip(majors, _grid_regions(core, min(len(majors), 4), gap) if len(majors) > 1 else [core]):
+                out[m_i] = r
+        else:  # text-only core
+            if len(texts) == 2:
+                for t_i, r in zip(texts, _hsplit(core, [0.5, 0.5], gap)):
+                    out[t_i] = r
             else:
-                text_r, major_r = _hsplit(top_r, [1 - frac, frac], gap)
-            out: list[Optional[Region]] = [None, None, None]
-            out[majors[0]], out[buls[0]], out[strips[0]] = major_r, text_r, strip_r
+                for t_i, r in zip(texts, _vsplit(core, [1 / len(texts)] * len(texts), gap)):
+                    out[t_i] = r
+        if all(r is not None for r in out):
             return out  # type: ignore[return-value]
 
-    # Side-by-side: one major block + one bullets column (the canonical academic composition).
-    if n == 2 and len(buls) == 1 and types[1 - buls[0]] in _MAJOR_BLOCKS:
-        major = 1 - buls[0]
-        major_left = lt in (LayoutType.FIGURE_LEFT, LayoutType.TWO_COLUMN_TABLE)
-        frac = 0.55 if types[major] == "table" else 0.58
-        if major_left:
-            major_r, text_r = _hsplit(content, [frac, 1 - frac], gap)
-        else:
-            text_r, major_r = _hsplit(content, [1 - frac, frac], gap)
-        out = [None, None]
-        out[major], out[buls[0]] = major_r, text_r
-        return out  # type: ignore[return-value]
-
-    return None  # vertical stack
+    return None  # exotic mixes (e.g. formula among others) -> weighted vertical stack
 
 
 def _blank_layout(prs):

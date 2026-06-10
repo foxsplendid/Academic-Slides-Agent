@@ -541,11 +541,12 @@ def test_two_column_table_table_left_text_right(tmp_path):
     assert table.left < text.left  # table LEFT, takeaways RIGHT
 
 
-def test_text_only_slides_keep_vertical_stack(tmp_path):
+def test_two_bullet_lists_compose_side_by_side(tmp_path):
+    # the general compositor treats twin lists as a comparison -> columns, not a cramped stack
     deck = _slide_of(LayoutType.BULLET_EVIDENCE, [BulletBlock(items=["a"]), BulletBlock(items=["b"])])
     shapes = _shapes_of(tmp_path, deck)
     boxes = [s for s in shapes if s.has_text_frame and s.text_frame.text in ("a", "b")]
-    assert len(boxes) == 2 and boxes[0].left == boxes[1].left  # stacked, same x
+    assert len(boxes) == 2 and boxes[0].left != boxes[1].left and boxes[0].top == boxes[1].top
 
 
 # --- data graphics v1: styled charts + tables ----------------------------------
@@ -926,3 +927,42 @@ def test_figure_bullets_callout_side_by_side_with_strip(tmp_path):
     assert pic.left > bullets.left  # figure right, text left (side by side, not stacked)
     assert callout.top > pic.top  # takeaway strip across the bottom
     assert callout.top + callout.height <= prs.slide_height
+
+
+def test_compositor_stat_top_callout_bottom_with_visual(tmp_path):
+    from slide_ir import CalloutBlock, StatBlock, StatItem, DiagramBlock, DiagramNode
+
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [
+            StatBlock(items=[StatItem(value="r=0.9", label="x")]),
+            DiagramBlock(nodes=[DiagramNode(id="a", label="A"), DiagramNode(id="b", label="B")]),
+            BulletBlock(items=["p1", "p2", "p3"]),
+            CalloutBlock(label="结论", text="要点"),
+        ],
+    )
+    shapes = _shapes_of(tmp_path, deck)
+    stat = next(s for s in shapes if s.has_text_frame and "r=0.9" in s.text_frame.text)
+    bullets = next(s for s in shapes if s.has_text_frame and "p1" in s.text_frame.text)
+    callout = next(s for s in shapes if s.has_text_frame and "要点" in s.text_frame.text)
+    assert stat.top < bullets.top  # headline numbers band on top
+    assert callout.top > bullets.top  # takeaway band at the bottom
+
+
+def test_compositor_two_visuals_grid_with_text_below(tmp_path):
+    img = _png(tmp_path / "v.png", 400, 300)
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [
+            FigureBlock(asset_id="i"),
+            ChartBlock(chart_type="bar", categories=["a"], series=[ChartSeries(name="s", values=[1])]),
+            BulletBlock(items=["p1", "p2"]),
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "g.pptx", asset_resolver={"i": str(img)})
+    slide = Presentation(str(out)).slides[0]
+    pic = next(sh for sh in slide.shapes if sh.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    chart = next(sh for sh in slide.shapes if sh.has_chart)
+    bullets = next(sh for sh in slide.shapes if sh.has_text_frame and "p1" in sh.text_frame.text)
+    assert {pic.left == chart.left} == {False}  # the two visuals sit side by side
+    assert bullets.top > pic.top and bullets.top > chart.top  # points below the visual row

@@ -123,3 +123,57 @@ def inject_canvas_slides(pptx_path: str | Path, canvases: dict[int, str]) -> Non
         shutil.copyfile(out_tmp, pptx_path)
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+_CANVAS_W, _CANVAS_H = 1280.0, 720.0
+
+
+def _est_text_width(text: str, size: float) -> float:
+    """CJK ~= 1.0 em, Latin/digit ~= 0.55 em — same estimator family the bullet fitter uses."""
+    return sum(1.0 if ord(c) > 0x2E80 else 0.55 for c in text) * size
+
+
+def lint_canvas_svg(svg: str) -> list[str]:
+    """Deterministic geometry lint for canvas pages: estimated text overflow past the canvas edge
+    and text-on-text collisions. Conservative on purpose (transforms are skipped) — its findings
+    feed the authoring retry loop, so false positives would burn LLM attempts."""
+    try:
+        root = etree.fromstring(svg.encode("utf-8"))
+    except Exception:
+        return []  # well-formedness is the guard's job
+    texts: list[tuple[float, float, float, float, str]] = []  # (x0, x1, y, size, snippet)
+
+    def walk(el, skip: bool) -> None:
+        name = etree.QName(el).localname if isinstance(el.tag, str) else ""
+        skip = skip or name == "defs" or el.get("transform") is not None
+        if name == "text" and not skip:
+            content = "".join(el.itertext()).strip()
+            if content:
+                try:
+                    x = float(el.get("x", "0"))
+                    y = float(el.get("y", "0"))
+                    size = float((el.get("font-size") or "16").replace("px", ""))
+                except ValueError:
+                    return
+                w = _est_text_width(content, size)
+                anchor = el.get("text-anchor") or ""
+                x0 = x - w / 2 if anchor == "middle" else (x - w if anchor == "end" else x)
+                texts.append((x0, x0 + w, y, size, content[:24]))
+        for child in el:
+            walk(child, skip)
+
+    walk(root, False)
+    findings: list[str] = []
+    for x0, x1, y, size, snip in texts:
+        if x1 > _CANVAS_W + 12 or x0 < -12:
+            findings.append(f"文本可能超出画布右/左边界: “{snip}…” (x≈{x0:.0f}-{x1:.0f})")
+        if y > _CANVAS_H - 4 or y - size < 0:
+            findings.append(f"文本可能超出画布上下边界: “{snip}…” (y≈{y:.0f})")
+    for i in range(len(texts)):
+        for j in range(i + 1, len(texts)):
+            a, b = texts[i], texts[j]
+            if abs(a[2] - b[2]) < 0.6 * min(a[3], b[3]):
+                inter = min(a[1], b[1]) - max(a[0], b[0])
+                if inter > 0.25 * min(a[1] - a[0], b[1] - b[0]) and inter > 8:
+                    findings.append(f"两段文本疑似重叠: “{a[4]}…” 与 “{b[4]}…” (y≈{a[2]:.0f})")
+    return findings[:6]

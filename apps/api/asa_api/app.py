@@ -279,7 +279,7 @@ def create_app(
         detail: str = Form(default="auto"),
         split_figures: bool = Form(default=False),
         vlm_critic: bool = Form(default=False),
-        premium: bool = Form(default=False),
+        premium: bool = Form(default=True),
         native_formula: bool = Form(default=False),
     ):
         job_id = uuid.uuid4().hex[:12]

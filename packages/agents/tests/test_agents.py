@@ -583,3 +583,14 @@ def test_rejection_feedback_triggers_full_replan():
     assert "用户退回大纲" in llm.calls[0]["prompt"]
     assert "上一稿大纲" in llm.calls[0]["prompt"]  # prior outline handed over as context
     assert [s.title for s in deck.slides] != ["旧页"]
+
+
+def test_canvas_expansion_injects_matching_exemplar():
+    plan_with_keywords = json.dumps(
+        {"slides": [{"slide_id": "s1", "layout_type": "canvas", "title": "预测与观测相关性", "focus": "散点与对角线", "evidence_pages": [1], "figure_ids": [], "table_refs": []}]}
+    )
+    assets, tables = _evidence()
+    llm = FakeLLM(plan_with_keywords, _CANVAS_SLIDE)
+    build_deck_detailed(assets, tables, llm, premium=True)
+    canvas_call = next(c for c in llm.calls if "整页 SVG" in (c["system"] or ""))
+    assert "构图范例" in canvas_call["prompt"] and "scatter_chart" in canvas_call["prompt"]
