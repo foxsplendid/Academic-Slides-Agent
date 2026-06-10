@@ -27,12 +27,23 @@ downloadable `.pptx`.
 - **THEN** the downloaded response is a `.pptx`
 
 ### Requirement: Browser frontend drives the flow
-A built web SPA SHALL target the API endpoints to upload inputs, stream progress, review the
-outline, approve, and download — without an in-browser editor.
+The web UI SHALL be a three-view application (generate, visual approval, result) with a sidebar of
+past jobs (status, open, delete), a generation view exposing per-job options (style, parser, opt-in
+toggles) with staged live progress, a visual approval view presenting real rendered slide images with
+approve and reject-with-feedback actions, and a result view with per-slide preview and download. It
+SHALL remain export-first (no embedded editor) and degrade to a text outline when no renderer exists.
 
-#### Scenario: SPA builds and targets the endpoints
-- **WHEN** the frontend is built
-- **THEN** the build succeeds and the bundle references the create/stream/approve/download endpoints
+#### Scenario: Visual approval
+- **WHEN** generation reaches the Hard-Stop on a host with a slide renderer
+- **THEN** the user reviews rendered slide thumbnails and may approve or reject with feedback
+
+#### Scenario: Renderer-less degradation
+- **WHEN** no renderer is available
+- **THEN** the approval view falls back to the text outline and approval still works
+
+#### Scenario: Rejection replans live
+- **WHEN** the user rejects with feedback
+- **THEN** the replan progress streams in the UI and ends at a fresh visual approval
 
 ### Requirement: Live progress panel
 The web UI SHALL display generation progress as distinct phases and, during slide generation, a live
