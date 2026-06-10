@@ -375,3 +375,35 @@ def test_mineru_panel_split_opt_in(tmp_path, monkeypatch):
     on = parse_mineru_content_list(blocks, assets_dir, "p.pdf", tmp_path / "ws_on", "p")
     figs = [a for a in on.assets if a.kind == "figure"]
     assert len(figs) == 5 and any(a.locator.get("panel") == 0 for a in figs)
+
+
+def test_junk_badge_image_filtered(tmp_path):
+    """Tiny publisher badges ("Check for updates") must not enter the Evidence Pool."""
+    from PIL import Image
+    from ingestion import parse_mineru_content_list
+
+    assets_dir = tmp_path / "mineru"
+    (assets_dir / "images").mkdir(parents=True)
+    Image.new("RGB", (79, 81), (200, 50, 50)).save(str(assets_dir / "images" / "badge.jpg"))
+    Image.new("RGB", (1200, 800), (50, 50, 200)).save(str(assets_dir / "images" / "real.jpg"))
+    blocks = [
+        {"type": "image", "img_path": "images/badge.jpg", "page_idx": 0},
+        {"type": "image", "img_path": "images/real.jpg", "image_caption": ["Fig. 1. Workflow"], "page_idx": 1},
+    ]
+    res = parse_mineru_content_list(blocks, assets_dir, "p.pdf", tmp_path / "ws", "p")
+    figs = [a for a in res.assets if a.kind == "figure"]
+    assert len(figs) == 1  # badge filtered, real figure kept
+    assert figs[0].locator["caption"].startswith("Fig. 1")
+
+
+def test_caption_panel_letter_stripped(tmp_path):
+    from PIL import Image
+    from ingestion import parse_mineru_content_list
+
+    assets_dir = tmp_path / "mineru"
+    (assets_dir / "images").mkdir(parents=True)
+    Image.new("RGB", (900, 700), (90, 90, 90)).save(str(assets_dir / "images" / "f.jpg"))
+    blocks = [{"type": "image", "img_path": "images/f.jpg", "image_caption": ["B Fig. 4. Geochemical reconstruction"], "page_idx": 4}]
+    res = parse_mineru_content_list(blocks, assets_dir, "p.pdf", tmp_path / "ws", "p")
+    cap = next(a for a in res.assets if a.kind == "figure").locator["caption"]
+    assert cap.startswith("Fig. 4.")  # stray panel letter stripped

@@ -60,6 +60,33 @@ class _TableHTMLParser(HTMLParser):
             self._row = None
 
 
+# Real paper figures (rendered ~200 DPI) are far larger than publisher badges/logos/icons.
+_MIN_FIG_SIDE_PX = 100
+_MIN_FIG_AREA_PX = 40_000
+
+
+def _is_junk_image(path: Path) -> bool:
+    """Publisher badges ("Check for updates"), logos and icons are tiny — filter them out so they
+    never enter the Evidence Pool (a planner once illustrated a slide with the journal badge)."""
+    try:
+        from PIL import Image
+
+        with Image.open(str(path)) as im:
+            w, h = im.size
+        return min(w, h) < _MIN_FIG_SIDE_PX or (w * h) < _MIN_FIG_AREA_PX
+    except Exception:
+        return False  # unreadable -> keep; downstream placement is defensive anyway
+
+
+def _clean_caption(caption: str) -> str:
+    """Caption hygiene: strip a stray leading panel letter ("B Fig. 4. ..." -> "Fig. 4. ...") and
+    drop captions that are ONLY a panel letter ("A") — they are noise, not figure captions."""
+    caption = re.sub(r"^[A-Za-z]\s+(?=(?:Fig\.?|Figure)\b)", "", caption).strip()
+    if re.fullmatch(r"[A-Za-z]", caption):
+        return ""
+    return caption
+
+
 def _html_table_to_block(html: str, caption: Optional[str]) -> Optional[TableBlock]:
     p = _TableHTMLParser()
     try:
@@ -127,10 +154,13 @@ def parse_mineru_content_list(
             src_img = assets_dir / rel
             if not src_img.is_file():
                 continue
+            if _is_junk_image(src_img):  # publisher badges / logos / icons — not paper figures
+                continue
             fig_i += 1
             dst = workspace / f"{stem}_mineru_fig{fig_i}{src_img.suffix or '.jpg'}"
             shutil.copyfile(src_img, dst)
             caption = " ".join(b.get("image_caption") or b.get("chart_caption") or []).strip()
+            caption = _clean_caption(caption)
             if not caption:  # borrow a same-page "Fig. N" caption when MinerU left it empty
                 queue = fig_captions.get(page)
                 if queue:

@@ -103,11 +103,24 @@ def _figure_ids(assets: list[EvidenceAsset]) -> list[str]:
     return [a.asset_id for a in assets if a.kind == "figure"]
 
 
+def figure_menu(assets: list[EvidenceAsset], *, cap_chars: int = 60) -> str:
+    """One line per figure: ``asset_id —— caption…``, so the planner picks figures SEMANTICALLY
+    (a bare id list once led it to illustrate a slide with an uncaptioned decorative image)."""
+    lines = []
+    for a in assets:
+        if a.kind != "figure":
+            continue
+        cap = (a.locator or {}).get("caption", "") if isinstance(a.locator, dict) else ""
+        note = cap[:cap_chars] if cap else "(无图注,可能是装饰图/子图,慎用)"
+        lines.append(f"- {a.asset_id} —— {note}")
+    return "\n".join(lines)
+
+
 def build_outline_prompt(assets: list[EvidenceAsset], tables: list[TableBlock]) -> str:
-    figs = _figure_ids(assets)
-    fig_line = ", ".join(figs) if figs else "(无 — 不要输出任何 figure block,用文字描述图)"
+    menu = figure_menu(assets)
+    fig_line = f"\n{menu}\n(优先选择**有图注**的结果图)" if menu else "(无 — 不要输出任何 figure block,用文字描述图)"
     return (
-        f"可用图 asset_id:{fig_line}\n\n"
+        f"可用图:{fig_line}\n\n"
         f"证据:\n{_evidence_digest(assets, tables)}\n\n现在产出 Slide-IR Deck JSON。"
     )
 

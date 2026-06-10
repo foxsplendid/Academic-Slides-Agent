@@ -19,7 +19,7 @@ from typing import Callable, Optional
 from slide_ir import Deck, EvidenceAsset, IRBoundaryError, LayoutType, SlideIR, TableBlock
 
 from .llm import LLM
-from .outline import _evidence_digest, _extract_json, _figure_ids, serialize_table
+from .outline import _evidence_digest, _extract_json, figure_menu, serialize_table
 
 Progress = Optional[Callable[[dict], None]]
 
@@ -133,10 +133,10 @@ def _fix_structural_layout(slide: SlideIR) -> SlideIR:
 def _skeleton(
     assets: list[EvidenceAsset], tables: list[TableBlock], llm: LLM, feedback: Optional[list[str]]
 ) -> list[dict]:
-    figs = _figure_ids(assets)
-    fig_line = ", ".join(figs) if figs else "(无)"
+    menu = figure_menu(assets)
+    fig_line = f"\n{menu}\n(figure_id 按图注语义选择,**优先有图注的结果图**,无图注的慎用)" if menu else "(无)"
     prompt = (
-        f"可用图 asset_id:{fig_line}\n\n证据(节选):\n{_evidence_digest(assets, tables)}\n\n现在产出骨架 JSON。"
+        f"可用图:{fig_line}\n\n证据(节选):\n{_evidence_digest(assets, tables)}\n\n现在产出骨架 JSON。"
     )
     if feedback:
         prompt += "\n\n上一稿存在以下问题,本次修订必须全部修复:\n" + "\n".join(f"- {f}" for f in feedback)

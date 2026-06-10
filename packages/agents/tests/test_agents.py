@@ -465,3 +465,15 @@ def test_structural_layout_relayout_at_assembly():
         {"slide_id": "y", "layout_type": "section", "title": "方法", "blocks": [], "speaker_notes": "", "provenance": {"source": "p"}}
     )
     assert _fix_structural_layout(divider).layout_type == LayoutType.SECTION  # real divider untouched
+
+
+def test_figure_menu_carries_captions_and_warns_uncaptioned():
+    from asa_agents.outline import figure_menu
+
+    assets = [
+        EvidenceAsset(asset_id="f1", kind="figure", content_ref="a.png", source="p.pdf", locator={"caption": "Fig. 1. Workflow of the ML method"}),
+        EvidenceAsset(asset_id="f2", kind="figure", content_ref="b.png", source="p.pdf", locator={"caption": ""}),
+    ]
+    menu = figure_menu(assets)
+    assert "Fig. 1. Workflow" in menu  # caption hint present
+    assert "慎用" in menu  # captionless figure flagged
