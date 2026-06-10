@@ -71,3 +71,11 @@ blank or corrupt slide.
 - **WHEN** a formula outside the supported subset is compiled
 - **THEN** no OMML is produced and the image renderer is used
 
+### Requirement: Icon sidecar
+The Node sidecar SHALL render whitelisted Tabler icons to tinted PNGs (cached) and report
+unavailability cleanly so callers fail open.
+
+#### Scenario: Sidecar absent
+- **WHEN** Node or the icon corpus is unavailable
+- **THEN** the default icon renderer is None and decks render without icons
+

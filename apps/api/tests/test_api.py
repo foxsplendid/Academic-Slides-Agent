@@ -230,3 +230,26 @@ def test_generation_failure_emits_error_event(tmp_path):
     job_id = r.json()["job_id"]
     body = client.get(f"/jobs/{job_id}/stream").text
     assert "event: error" in body  # surfaced, not a silent connection drop
+
+
+# --- P2: template import endpoints -------------------------------------------------
+
+
+def test_template_upload_and_use(tmp_path):
+    from pptx import Presentation
+
+    tpl = tmp_path / "mytpl.pptx"
+    Presentation().save(str(tpl))
+    client = _client(tmp_path)
+    r = client.post("/templates", files=[("file", ("mytpl.pptx", open(tpl, "rb"), "application/octet-stream"))])
+    assert r.status_code == 200
+    style_name = r.json()["style_name"]
+    assert style_name.startswith("tpl_")
+    listing = client.get("/templates").json()["templates"]
+    assert any(t["style_name"] == style_name for t in listing)
+    # full run with the imported style
+    r2 = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))],
+                     data={"style_name": style_name})
+    job_id = r2.json()["job_id"]
+    client.get(f"/jobs/{job_id}/stream")
+    assert client.post(f"/jobs/{job_id}/approve", json={"approved": True}).status_code == 200

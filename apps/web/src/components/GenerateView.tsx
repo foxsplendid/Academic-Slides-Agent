@@ -11,9 +11,10 @@ import {
   Table2,
   UploadCloud,
 } from "lucide-react";
-import { listJobs, uploadJob } from "../api";
+import { listJobs, listTemplates, uploadJob, uploadTemplate, type CustomTemplate } from "../api";
 import { followJob } from "../follow";
 import { useStore, type Stage } from "../store";
+import { useEffect } from "react";
 
 const STAGES: { key: Stage; label: string }[] = [
   { key: "parse", label: "解析论文" },
@@ -30,9 +31,26 @@ export function GenerateView() {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [styleName, setStyleName] = useState("academic");
+  const [templates, setTemplates] = useState<CustomTemplate[]>([]);
+  const tplInputRef = useRef<HTMLInputElement>(null);
   const [parser, setParser] = useState("auto");
   const [detail, setDetail] = useState("normal");
   const [splitFigures, setSplitFigures] = useState(false);
+
+  useEffect(() => {
+    listTemplates().then(setTemplates);
+  }, []);
+
+  async function importTemplate(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    try {
+      const t = await uploadTemplate(list[0]);
+      setTemplates((prev) => [...prev.filter((x) => x.style_name !== t.style_name), t]);
+      setStyleName(t.style_name);
+    } catch (e) {
+      patchRun({ error: String(e) });
+    }
+  }
   const [vlmCritic, setVlmCritic] = useState(false);
   const [nativeFormula, setNativeFormula] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -112,10 +130,32 @@ export function GenerateView() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="field-label">设计风格</label>
-            <select className="field" value={styleName} onChange={(e) => setStyleName(e.target.value)}>
-              <option value="academic">Academic(黑体 + Times,红色强调)</option>
-              <option value="modern_teal">Modern Teal(雅黑 + Calibri,青色)</option>
-            </select>
+            <div className="flex gap-2">
+              <select className="field" value={styleName} onChange={(e) => setStyleName(e.target.value)}>
+                <option value="academic">Academic(黑体 + Times,红色强调)</option>
+                <option value="modern_teal">Modern Teal(雅黑 + Calibri,青色)</option>
+                {templates.map((t) => (
+                  <option key={t.style_name} value={t.style_name}>
+                    模板:{t.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn-ghost shrink-0 px-3 text-xs"
+                title="导入 .pptx 模板(提取主题字体/配色并继承母版)"
+                onClick={() => tplInputRef.current?.click()}
+              >
+                导入模板
+              </button>
+              <input
+                ref={tplInputRef}
+                type="file"
+                accept=".pptx"
+                className="hidden"
+                onChange={(e) => importTemplate(e.target.files)}
+              />
+            </div>
           </div>
           <div>
             <label className="field-label">PDF 解析器</label>

@@ -129,8 +129,18 @@ def render_bullets(slide, block: BulletBlock, region: Region, style: StyleProfil
     return box
 
 
-def render_callout(slide, block, region: Region, style: StyleProfile = ACADEMIC):
-    """A tinted takeaway card with an accent edge on the left."""
+def _icon_png(icon_resolver, name, style: StyleProfile, px: int = 64):
+    """Resolve an icon name to a tinted PNG path via the injected resolver; None = skip (fail open)."""
+    if not (icon_resolver and name):
+        return None
+    try:
+        return icon_resolver(name, f"#{style.accent_rgb}", px)
+    except Exception:
+        return None
+
+
+def render_callout(slide, block, region: Region, style: StyleProfile = ACADEMIC, icon_resolver=None):
+    """A tinted takeaway card with an accent edge on the left (and an optional concept icon)."""
     from pptx.enum.shapes import MSO_SHAPE
     from pptx.enum.text import MSO_ANCHOR
 
@@ -147,7 +157,14 @@ def render_callout(slide, block, region: Region, style: StyleProfile = ACADEMIC)
     edge.line.fill.background()
     edge.shadow.inherit = False
 
+    icon = _icon_png(icon_resolver, getattr(block, "icon", None), style)
+    if icon is not None:
+        size = int(Pt(20))
+        slide.shapes.add_picture(str(icon), left + int(Pt(12)), top + (height - size) // 2, size, size)
+
     tf = card.text_frame
+    if icon is not None:
+        tf.margin_left = int(Pt(40))  # clear the icon
     tf.word_wrap = True
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
     para = tf.paragraphs[0]
@@ -164,8 +181,8 @@ def render_callout(slide, block, region: Region, style: StyleProfile = ACADEMIC)
     return card
 
 
-def render_stat(slide, block, region: Region, style: StyleProfile = ACADEMIC):
-    """1-4 big-number cards in a row (value in accent color, label muted below)."""
+def render_stat(slide, block, region: Region, style: StyleProfile = ACADEMIC, icon_resolver=None):
+    """1-4 big-number cards in a row (value in accent color, label muted below, optional icon)."""
     from pptx.enum.shapes import MSO_SHAPE
     from pptx.enum.text import MSO_ANCHOR
 
@@ -182,6 +199,10 @@ def render_stat(slide, block, region: Region, style: StyleProfile = ACADEMIC):
         card.line.color.rgb = style.card_line_rgb
         card.line.width = Pt(0.75)
         card.shadow.inherit = False
+        icon = _icon_png(icon_resolver, getattr(item, "icon", None), style)
+        if icon is not None:
+            size = int(Pt(16))
+            slide.shapes.add_picture(str(icon), x + int(Pt(8)), top + int(Pt(8)), size, size)
         tf = card.text_frame
         tf.word_wrap = True
         tf.vertical_anchor = MSO_ANCHOR.MIDDLE

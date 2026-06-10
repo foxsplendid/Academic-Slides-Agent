@@ -155,3 +155,28 @@ export async function deleteJob(jobId: string): Promise<void> {
 export function downloadUrl(jobId: string): string {
   return `${API_BASE}/jobs/${jobId}/download`;
 }
+
+export interface CustomTemplate {
+  style_name: string;
+  label: string;
+  accent: string;
+}
+
+export async function listTemplates(): Promise<CustomTemplate[]> {
+  try {
+    const res = await fetch(`${API_BASE}/templates`);
+    if (!res.ok) return [];
+    return ((await res.json()) as { templates: CustomTemplate[] }).templates;
+  } catch {
+    return [];
+  }
+}
+
+export async function uploadTemplate(file: File): Promise<CustomTemplate> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/templates`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`模板导入失败: ${res.status}`);
+  const d = (await res.json()) as { style_name: string; accent: string };
+  return { style_name: d.style_name, label: file.name, accent: d.accent };
+}

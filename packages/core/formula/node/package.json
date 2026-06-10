@@ -4,7 +4,8 @@
   "private": true,
   "description": "LaTeX -> MathJax(SVG, mhchem) -> resvg PNG sidecar for Academic-Slides-Agent",
   "dependencies": {
-    "mathjax-full": "^3.2.2",
-    "@resvg/resvg-js": "^2.6.2"
+    "@resvg/resvg-js": "^2.6.2",
+    "@tabler/icons": "^3.44.0",
+    "mathjax-full": "^3.2.2"
   }
 }

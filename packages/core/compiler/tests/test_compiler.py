@@ -764,3 +764,83 @@ def test_ending_is_centered_divider(tmp_path):
     shapes = list(Presentation(str(out)).slides[0].shapes)
     box = next(s for s in shapes if s.has_text_frame and "谢谢" in s.text_frame.text)
     assert box.top > Inches(1.5)  # vertically centered region, not a content-slide title bar
+
+
+# --- P2: icons on callout/stat ---------------------------------------------------
+
+
+def _fake_icon_resolver(tmp_path):
+    icon = tmp_path / "ic.png"
+    icon.write_bytes(_PNG_1x1)
+
+    def resolver(name, color_hex, px):
+        return icon if name == "bulb" else None  # whitelist behavior: unknown -> None
+
+    return resolver
+
+
+def test_callout_icon_rendered_when_resolved(tmp_path):
+    from slide_ir import CalloutBlock
+
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [CalloutBlock(label="结论", text="t", icon="bulb")])
+    out = compile_deck(deck, tmp_path / "ci.pptx", icon_resolver=_fake_icon_resolver(tmp_path))
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    assert any(s.shape_type == MSO_SHAPE_TYPE.PICTURE for s in shapes)  # the icon
+
+
+def test_unknown_icon_skipped_silently(tmp_path):
+    from slide_ir import CalloutBlock
+
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [CalloutBlock(label="结论", text="t", icon="no-such-icon")])
+    out = compile_deck(deck, tmp_path / "cu.pptx", icon_resolver=_fake_icon_resolver(tmp_path))
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    assert not any(s.shape_type == MSO_SHAPE_TYPE.PICTURE for s in shapes)  # no crash, no icon
+
+
+def test_stat_icon_rendered(tmp_path):
+    from slide_ir import StatBlock, StatItem
+
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [StatBlock(items=[StatItem(value="94%", label="acc", icon="bulb")])])
+    out = compile_deck(deck, tmp_path / "si.pptx", icon_resolver=_fake_icon_resolver(tmp_path))
+    assert any(s.shape_type == MSO_SHAPE_TYPE.PICTURE for s in Presentation(str(out)).slides[0].shapes)
+
+
+# --- P2: template import ----------------------------------------------------------
+
+
+def test_template_import_extracts_and_registers(tmp_path):
+    from pathlib import Path
+
+    from pptx_compiler import get_style, import_template
+
+    base = Presentation()  # default Office theme: Calibri fonts, accent colors
+    base.save(str(tmp_path / "tpl.pptx"))
+    profile = import_template(tmp_path / "tpl.pptx", "tpl_test")
+    assert profile.name == "tpl_test"
+    assert profile.latin_font  # extracted (Calibri Light on the default theme)
+    assert profile.base_template and Path(profile.base_template).exists()
+    assert get_style("tpl_test") is profile  # registered -> resolvable by name
+
+
+def test_compile_inherits_imported_master(tmp_path):
+    from pptx_compiler import import_template
+
+    base = Presentation()
+    base.slide_width = Inches(13.333)
+    base.slide_height = Inches(7.5)
+    base.save(str(tmp_path / "tpl.pptx"))
+    profile = import_template(tmp_path / "tpl.pptx", "tpl_master")
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [BulletBlock(items=["a"])])
+    out = compile_deck(deck, tmp_path / "o.pptx", style=profile)
+    assert Presentation(str(out)).slide_width == Inches(13.333)  # came from the template file
+
+
+def test_profile_roundtrips_through_dict(tmp_path):
+    from pptx_compiler import extract_style_from_pptx, profile_from_dict, profile_to_dict
+
+    Presentation().save(str(tmp_path / "t.pptx"))
+    p = extract_style_from_pptx(tmp_path / "t.pptx", "tpl_rt")
+    q = profile_from_dict(profile_to_dict(p))
+    assert (q.name, q.ea_font, q.latin_font, str(q.accent_rgb), q.base_template) == (
+        p.name, p.ea_font, p.latin_font, str(p.accent_rgb), p.base_template
+    )

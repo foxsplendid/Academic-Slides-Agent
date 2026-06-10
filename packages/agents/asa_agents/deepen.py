@@ -69,8 +69,13 @@ block 之一:
   {"type":"formula","latex":"..."}
   {"type":"chart","chart_type":"bar|line|scatter|pie","categories":["..."],"series":[{"name":"...","values":[1,2,3]}],"title":"..."}
   {"type":"diagram","diagram_type":"flow|tree|cycle|comparison|pyramid|timeline","nodes":[{"id":"n1","label":"..."}],"edges":[{"source":"n1","target":"n2","label":"..."}],"title":"..."}
-  {"type":"callout","label":"结论","text":"<一句话核心结论/启示>"}(本页有明确核心结论时,可用它替代最后一条 "→ " bullet)
-  {"type":"stat","items":[{"value":"r=0.938","label":"验证集相关系数"}]}(1-4 个**来自证据的**关键数值,适合成果/指标页;严禁编造)
+  {"type":"callout","label":"结论","text":"<一句话核心结论/启示>","icon":"bulb"}(本页有明确核心结论时,可用它替代最后一条 "→ " bullet)
+  {"type":"stat","items":[{"value":"r=0.938","label":"验证集相关系数","icon":"target"}]}(1-4 个**来自证据的**关键数值,适合成果/指标页;严禁编造)
+图标(callout/stat 的可选 icon 字段):**只能**从这些名称里选——database, chart-bar, chart-line, chart-dots, chart-pie, trending-up, trending-down, \
+flask, microscope, atom, math-function, calculator, binary-tree, network, cpu, robot, settings, target, bulb, alert-triangle, circle-check, \
+arrow-right, clock, calendar, map-pin, world, mountain, droplet, flame, wind, snowflake, book, file-text, table, photo, search, scale, \
+ruler, thermometer, gauge, refresh, layers-intersect, stack-2, school, award。\
+**仅在概念确实匹配时使用,每页至多 2 个,宁缺勿滥**;没有合适的就省略 icon 字段。
 要求:
 - **图表(chart)**:若本页证据里有一组可比较的数值(≥3 个类别/时间点/分组的指标,如各元素重要性、随时间的指标),\
 **优先输出 chart block 用原生图表可视化**,而不是仅用文字罗列。**选型**:类别间对比→`bar`;随时间/自变量的趋势→`line`;\

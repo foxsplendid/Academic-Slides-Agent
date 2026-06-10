@@ -51,6 +51,9 @@ class StyleProfile:
     chart_axis_pt: float = 11.0  # axis tick labels / legend
     table_header_rgb: RGBColor = RGBColor(0x2F, 0x5E, 0x8E)  # header row fill
     table_band_rgb: RGBColor = RGBColor(0xEF, 0xF3, 0xF8)  # zebra banding fill
+    # Imported templates: compile on top of this .pptx so the master/theme (background, layouts,
+    # theme fonts) is inherited natively. None = blank presentation.
+    base_template: str | None = None
 
 
 # The established tokens (derived from the user's academic 组会 deck) — default, so output is unchanged.
@@ -93,6 +96,11 @@ MODERN_TEAL = StyleProfile(
 )
 
 _PROFILES = {p.name: p for p in (ACADEMIC, MODERN_TEAL)}
+
+
+def register_style(profile: StyleProfile) -> None:
+    """Register a custom profile (e.g. extracted from an imported .pptx template)."""
+    _PROFILES[profile.name.lower()] = profile
 
 
 def get_style(name: str | None) -> StyleProfile:

@@ -60,6 +60,14 @@ def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str 
     except Exception:
         checkpointer = None  # fall back to in-memory (e.g. sqlite saver not installed)
 
+    icon_renderer = None
+    try:
+        from formula_render import default_icon_renderer
+
+        icon_renderer = default_icon_renderer(Path(resolved_out) / "icons")
+    except Exception:
+        icon_renderer = None
+
     return create_app(
         llm,
         formula_renderer=formula_renderer,
@@ -68,4 +76,5 @@ def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str 
         style=os.environ.get("ASA_STYLE"),  # style profile name (default: academic)
         vision_llm=vision_llm,
         checkpointer=checkpointer,
+        icon_renderer=icon_renderer,
     )

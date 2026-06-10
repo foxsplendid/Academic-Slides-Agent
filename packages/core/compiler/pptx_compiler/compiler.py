@@ -175,7 +175,7 @@ def _blank_layout(prs):
     return min(layouts, key=lambda layout: len(list(layout.placeholders)))
 
 
-def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE):
+def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE, icon_resolver=None):
     if isinstance(block, TableBlock):
         _blocks.render_table(slide, block, region, style)
     elif isinstance(block, BulletBlock):
@@ -191,9 +191,9 @@ def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolve
 
         render_diagram(slide, block, region, style)
     elif isinstance(block, CalloutBlock):
-        _blocks.render_callout(slide, block, region, style)
+        _blocks.render_callout(slide, block, region, style, icon_resolver)
     elif isinstance(block, StatBlock):
-        _blocks.render_stat(slide, block, region, style)
+        _blocks.render_stat(slide, block, region, style, icon_resolver)
 
 
 def _accent_rect(slide, x: int, y: int, w: int, h: int, rgb) -> None:
@@ -256,7 +256,7 @@ def _render_toc(slide, s: SlideIR, content: Region, style: StyleProfile) -> None
 
 
 def _render_slide(
-    prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE, page_no: int = 0
+    prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE, page_no: int = 0, icon_resolver=None
 ) -> None:
     slide_w, slide_h = prs.slide_width, prs.slide_height
     content_left = int(_MARGIN)
@@ -300,7 +300,7 @@ def _render_slide(
     regions = _regions_for(s, content, gap)
     if regions is not None:
         for block, region in zip(s.blocks, regions):
-            _render_block(slide, block, region, renderer, asset_resolver, style)
+            _render_block(slide, block, region, renderer, asset_resolver, style, icon_resolver)
         return
 
     # Vertical-stack fallback: weighted full-width slices.
@@ -312,7 +312,7 @@ def _render_slide(
     for block, f in zip(s.blocks, fracs):
         slice_h = int(usable_h * f)
         region = (content_left, cursor, content_width, slice_h)
-        _render_block(slide, block, region, renderer, asset_resolver, style)
+        _render_block(slide, block, region, renderer, asset_resolver, style, icon_resolver)
         cursor += slice_h + vgap
 
 
@@ -324,6 +324,7 @@ def compile_deck(
     formula_renderer: Optional[FormulaRenderer] = None,
     asset_resolver: Optional[dict] = None,
     style: StyleProfile | str | None = None,
+    icon_resolver=None,
 ) -> Path:
     """Render a `Deck` to a native, editable `.pptx` and return the output path.
 
@@ -332,6 +333,8 @@ def compile_deck(
     ``academic``). ``asset_resolver`` maps a figure block's ``asset_id`` to a rendered image path.
     """
     profile = style if isinstance(style, StyleProfile) else get_style(style)
+    if template is None and profile.base_template and Path(profile.base_template).is_file():
+        template = profile.base_template  # imported template: inherit its master/theme natively
     prs = Presentation(str(template)) if template else Presentation()
     if template is None and profile.widescreen:  # 16:9 unless a template dictates its own size
         prs.slide_width = Inches(13.333)
@@ -341,7 +344,7 @@ def compile_deck(
 
     for i, slide_ir in enumerate(deck.slides, start=1):
         slide = prs.slides.add_slide(layout)
-        _render_slide(prs, slide, slide_ir, renderer, asset_resolver, profile, page_no=i)
+        _render_slide(prs, slide, slide_ir, renderer, asset_resolver, profile, page_no=i, icon_resolver=icon_resolver)
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)

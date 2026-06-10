@@ -79,6 +79,7 @@ class CalloutBlock(_BlockBase):
     type: Literal["callout"] = "callout"
     text: str = Field(min_length=1)
     label: Optional[str] = None  # short tag, e.g. "结论" / "Take-away"
+    icon: Optional[str] = None  # Tabler icon name from the closed whitelist; unknown -> skipped
 
 
 class StatItem(BaseModel):
@@ -86,6 +87,7 @@ class StatItem(BaseModel):
 
     value: str = Field(min_length=1)  # the big number, e.g. "94%" / "r=0.938"
     label: str = ""  # what it measures
+    icon: Optional[str] = None  # Tabler icon name from the closed whitelist; unknown -> skipped
 
 
 class StatBlock(_BlockBase):

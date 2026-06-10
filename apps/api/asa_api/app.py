@@ -142,6 +142,7 @@ def create_app(
     style=None,
     vision_llm=None,
     checkpointer=None,
+    icon_renderer=None,
 ) -> FastAPI:
     app = FastAPI(title="Academic-Slides-Agent API")
     _origins = [
@@ -164,6 +165,7 @@ def create_app(
         "style": style,
         "vision_llm": vision_llm,
         "checkpointer": checkpointer,
+        "icon_renderer": icon_renderer,
     }
     if planner is not None:
         graph_kwargs["planner"] = planner
@@ -324,6 +326,56 @@ def create_app(
             },
             "warnings": (result.warnings if result else []),
         }
+
+    # --- imported templates: extract theme tokens + inherit the master at compile time ----------
+    templates_dir = out_root / "templates"
+
+    def _rehydrate_templates() -> None:
+        from pptx_compiler import profile_from_dict, register_style
+
+        if not templates_dir.is_dir():
+            return
+        for tf in templates_dir.glob("*.json"):
+            try:
+                register_style(profile_from_dict(json.loads(tf.read_text(encoding="utf-8"))))
+            except Exception:
+                continue
+
+    _rehydrate_templates()
+
+    @app.post("/templates")
+    async def upload_template(file: UploadFile = File(...), name: str = Form(default="")):
+        from pptx_compiler import import_template, profile_to_dict
+
+        tid = re.sub(r"[^a-z0-9_]+", "_", (name or Path(file.filename or "tpl").stem).lower())[:40] or "tpl"
+        tdir = templates_dir / tid
+        tdir.mkdir(parents=True, exist_ok=True)
+        dest = tdir / "template.pptx"
+        dest.write_bytes(await file.read())
+        try:
+            profile = import_template(dest, f"tpl_{tid}")
+        except Exception as err:
+            raise HTTPException(status_code=400, detail=f"template import failed: {err}") from err
+        (templates_dir / f"{tid}.json").write_text(
+            json.dumps(profile_to_dict(profile), ensure_ascii=False), encoding="utf-8"
+        )
+        return {
+            "style_name": profile.name,
+            "fonts": [profile.ea_font, profile.latin_font],
+            "accent": str(profile.accent_rgb),
+        }
+
+    @app.get("/templates")
+    def list_templates():
+        items = []
+        if templates_dir.is_dir():
+            for tf in templates_dir.glob("*.json"):
+                try:
+                    d = json.loads(tf.read_text(encoding="utf-8"))
+                    items.append({"style_name": d.get("name"), "label": tf.stem, "accent": d.get("accent", "")})
+                except Exception:
+                    continue
+        return {"templates": items}
 
     @app.get("/jobs")
     def list_jobs():

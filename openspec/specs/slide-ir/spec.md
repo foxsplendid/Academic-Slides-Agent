@@ -116,3 +116,10 @@ divider (no content blocks) and `toc` SHALL carry its agenda as a bullets block.
 - **WHEN** a slide declares layout `toc` with a bullets block of section names
 - **THEN** it passes IR validation
 
+### Requirement: Concept icons on cards
+Callout blocks and stat items SHALL accept an optional icon name from a closed whitelist.
+
+#### Scenario: Icon field validates
+- **WHEN** a callout declares icon "bulb"
+- **THEN** it passes IR validation
+

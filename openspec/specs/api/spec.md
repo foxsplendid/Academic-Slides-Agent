@@ -86,3 +86,11 @@ and a job killed mid-run SHALL list as interrupted and resume from its last comp
 - **WHEN** the server restarts while a job awaits approval
 - **THEN** approval on the new process compiles and the deck downloads
 
+### Requirement: Template upload and listing
+The API SHALL accept a .pptx template upload, register its extracted style for immediate use,
+persist it across restarts, and list available custom templates.
+
+#### Scenario: Imported style drives a job
+- **WHEN** a template is uploaded and a job is created with its style name
+- **THEN** the run compiles successfully with that style
+
