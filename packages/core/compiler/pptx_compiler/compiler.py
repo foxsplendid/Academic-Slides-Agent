@@ -297,6 +297,20 @@ def _render_slide(
         _render_toc(slide, s, content, style)
         return
 
+    # Drop figure blocks whose asset cannot resolve to a real file: a literal "[figure: id]"
+    # placeholder is worse than no figure (layout then falls back around the remaining blocks).
+    def _resolvable(b) -> bool:
+        if not isinstance(b, FigureBlock):
+            return True
+        ref = (asset_resolver or {}).get(b.asset_id) or b.asset_id
+        return Path(ref).is_file()
+
+    kept = [b for b in s.blocks if _resolvable(b)]
+    if kept != list(s.blocks):
+        s = s.model_copy(update={"blocks": kept})
+    if not s.blocks:
+        return
+
     regions = _regions_for(s, content, gap)
     if regions is not None:
         for block, region in zip(s.blocks, regions):

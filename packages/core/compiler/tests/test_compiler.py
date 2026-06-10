@@ -390,7 +390,7 @@ def test_flow_diagram_has_connectors(tmp_path):
     assert len(shapes) > 3  # 3 nodes + connectors
 
 
-def test_unresolved_figure_falls_back_to_placeholder(tmp_path):
+def test_unresolved_figure_dropped_silently(tmp_path):
     deck = Deck(
         deck_id="d",
         slides=[
@@ -406,7 +406,7 @@ def test_unresolved_figure_falls_back_to_placeholder(tmp_path):
     slide = Presentation(str(out)).slides[0]
     assert not any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in slide.shapes)
     texts = " ".join(sh.text_frame.text for sh in slide.shapes if sh.has_text_frame)
-    assert "missing" in texts
+    assert "missing" not in texts  # dropped silently — no literal placeholder reaches the audience
 
 
 def test_native_omml_formula_round_trips(tmp_path):
@@ -844,3 +844,14 @@ def test_profile_roundtrips_through_dict(tmp_path):
     assert (q.name, q.ea_font, q.latin_font, str(q.accent_rgb), q.base_template) == (
         p.name, p.ea_font, p.latin_font, str(p.accent_rgb), p.base_template
     )
+
+
+def test_dangling_figure_block_dropped_not_placeholder(tmp_path):
+    """A figure whose asset can't resolve must be dropped (no literal '[figure: id]' on the slide)."""
+    deck = _slide_of(LayoutType.FIGURE_CAPTION, [FigureBlock(asset_id="figure_12"), BulletBlock(items=["a", "b"])])
+    out = compile_deck(deck, tmp_path / "dang.pptx", asset_resolver={})
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    texts = " ".join(s.text_frame.text for s in shapes if s.has_text_frame)
+    assert "[figure" not in texts  # no ugly placeholder
+    assert "a" in texts  # bullets survived, full width fallback
+    assert not any(s.shape_type == MSO_SHAPE_TYPE.PICTURE for s in shapes)
