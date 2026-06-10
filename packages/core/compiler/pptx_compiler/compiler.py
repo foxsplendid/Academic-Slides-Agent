@@ -15,6 +15,7 @@ from pptx.util import Inches, Pt
 
 from slide_ir import (
     BulletBlock,
+    CalloutBlock,
     ChartBlock,
     Deck,
     DiagramBlock,
@@ -22,6 +23,7 @@ from slide_ir import (
     FormulaBlock,
     LayoutType,
     SlideIR,
+    StatBlock,
     TableBlock,
 )
 
@@ -34,7 +36,16 @@ _DEFAULT_STYLE = ACADEMIC
 _MARGIN = Inches(0.5)
 _CENTERED = (LayoutType.TITLE, LayoutType.SECTION)
 # Figures dominate; tables/formulas need room; bullets are compact. Used for weighted region heights.
-_BLOCK_WEIGHT = {"figure": 3.2, "chart": 3.0, "diagram": 3.0, "table": 2.0, "formula": 1.6, "bullets": 1.0}
+_BLOCK_WEIGHT = {
+    "figure": 3.2,
+    "chart": 3.0,
+    "diagram": 3.0,
+    "table": 2.0,
+    "formula": 1.6,
+    "stat": 1.3,
+    "bullets": 1.0,
+    "callout": 0.7,
+}
 # Visual blocks otherwise crowd out co-located text; cap their combined height so bullets stay readable.
 _VISUAL_BLOCKS = {"figure", "chart", "diagram"}
 _VISUAL_HEIGHT_CAP = 0.60
@@ -178,6 +189,10 @@ def _render_block(slide, block, region, renderer: FormulaRenderer, asset_resolve
         from .diagram import render_diagram
 
         render_diagram(slide, block, region, style)
+    elif isinstance(block, CalloutBlock):
+        _blocks.render_callout(slide, block, region, style)
+    elif isinstance(block, StatBlock):
+        _blocks.render_stat(slide, block, region, style)
 
 
 def _accent_rect(slide, x: int, y: int, w: int, h: int, rgb) -> None:

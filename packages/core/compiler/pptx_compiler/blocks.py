@@ -90,16 +90,117 @@ def _fit_font(items: list[str], width: int, height: int, *, base: float = 16.0, 
     return max(f, floor)
 
 
+def _flat_bullets(items) -> list[tuple[str, int]]:
+    """Flatten BulletBlock items (str | BulletItem) into (text, level) pairs."""
+    out: list[tuple[str, int]] = []
+    for it in items:
+        if isinstance(it, str):
+            out.append((it, 0))
+        else:  # BulletItem
+            out.append((it.text, 0))
+            out.extend((c, 1) for c in it.children)
+    return out
+
+
+def _set_bullet_props(para, level: int, size_pt: float) -> None:
+    """Real PPT bullet formatting: hanging indent + bullet glyph per level (•, then –)."""
+    pPr = para._p.get_or_add_pPr()
+    hang = int(Pt(size_pt) * 1.15)
+    pPr.set("marL", str(hang * (level + 1)))
+    pPr.set("indent", str(-hang))
+    buFont = pPr.makeelement(qn("a:buFont"), {"typeface": "Arial"})
+    buChar = pPr.makeelement(qn("a:buChar"), {"char": "•" if level == 0 else "–"})
+    pPr.append(buFont)
+    pPr.append(buChar)
+
+
 def render_bullets(slide, block: BulletBlock, region: Region, style: StyleProfile = ACADEMIC):
     left, top, width, height = region
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
     tf.word_wrap = True
-    size = Pt(_fit_font(block.items, width, height, base=style.body_pt))  # auto-shrink dense text
-    for i, item in enumerate(block.items):
+    flat = _flat_bullets(block.items)
+    size_pt = _fit_font([t for t, _ in flat], width, height, base=style.body_pt)  # auto-shrink dense text
+    for i, (text, level) in enumerate(flat):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        add_rich_text(p, f"• {item}", size=size, style=style)
+        sub = level > 0
+        add_rich_text(p, text, size=Pt(size_pt - 2 if sub else size_pt), style=style)
+        _set_bullet_props(p, level, size_pt)
     return box
+
+
+def render_callout(slide, block, region: Region, style: StyleProfile = ACADEMIC):
+    """A tinted takeaway card with an accent edge on the left."""
+    from pptx.enum.shapes import MSO_SHAPE
+    from pptx.enum.text import MSO_ANCHOR
+
+    left, top, width, height = region
+    card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
+    card.fill.solid()
+    card.fill.fore_color.rgb = style.table_band_rgb
+    card.line.fill.background()
+    card.shadow.inherit = False
+    edge = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, int(Pt(5)), height)
+    edge.fill.solid()
+    edge.fill.fore_color.rgb = style.accent_rgb
+    edge.line.fill.background()
+    edge.shadow.inherit = False
+
+    tf = card.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    para = tf.paragraphs[0]
+    if block.label:
+        tag = para.add_run()
+        tag.text = f"{block.label}  "
+        tag.font.bold = True
+        tag.font.size = Pt(style.body_pt)
+        tag.font.name = style.latin_font
+        tag.font.color.rgb = style.accent_rgb
+        _set_ea(tag.font, style.ea_font)
+    add_rich_text(para, block.text, size=Pt(style.body_pt), style=style)
+    return card
+
+
+def render_stat(slide, block, region: Region, style: StyleProfile = ACADEMIC):
+    """1-4 big-number cards in a row (value in accent color, label muted below)."""
+    from pptx.enum.shapes import MSO_SHAPE
+    from pptx.enum.text import MSO_ANCHOR
+
+    left, top, width, height = region
+    n = len(block.items)
+    gap = int(Pt(10))
+    card_w = (width - gap * (n - 1)) // n
+    value_pt = min(34.0, max(22.0, height / Pt(1) * 0.32))  # scale with the band height
+    for i, item in enumerate(block.items):
+        x = left + i * (card_w + gap)
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, top, card_w, height)
+        card.fill.solid()
+        card.fill.fore_color.rgb = style.table_band_rgb
+        card.line.fill.background()
+        card.shadow.inherit = False
+        tf = card.text_frame
+        tf.word_wrap = True
+        tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        vp = tf.paragraphs[0]
+        vp.alignment = PP_ALIGN.CENTER
+        run = vp.add_run()
+        run.text = item.value
+        run.font.bold = True
+        run.font.size = Pt(value_pt)
+        run.font.name = style.latin_font
+        run.font.color.rgb = style.accent_rgb
+        _set_ea(run.font, style.ea_font)
+        if item.label:
+            lp = tf.add_paragraph()
+            lp.alignment = PP_ALIGN.CENTER
+            lr = lp.add_run()
+            lr.text = item.label
+            lr.font.size = Pt(style.caption_pt)
+            lr.font.name = style.latin_font
+            lr.font.color.rgb = style.muted_rgb
+            _set_ea(lr.font, style.ea_font)
+    return None
 
 
 def render_table(slide, block: TableBlock, region: Region, style: StyleProfile = ACADEMIC):

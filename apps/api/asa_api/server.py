@@ -37,10 +37,26 @@ def build_default_app(*, llm=None, formula_renderer=None, out_dir: Optional[str 
     resolved_out = out_dir or os.environ.get("ASA_OUT_DIR", "exports")
     from asa_agents import build_deck_detailed  # two-stage detailed planner for production runs
 
+    vision_llm = None
+    if os.environ.get("ASA_VLM_CRITIC", "").lower() in ("1", "true", "yes"):
+        # Opt-in VLM visual critique. Needs a vision-capable model: ASA_VLM_MODEL overrides the
+        # provider's default. The critic fails open (skips) if rendering or the model is unavailable.
+        from asa_providers import OpenAICompatibleLLM, resolve_openai_profile
+
+        profile = os.environ.get("ASA_LLM_PROVIDER", "openai").strip().lower()
+        try:
+            cfg = resolve_openai_profile(profile)
+            vision_llm = OpenAICompatibleLLM(
+                model=os.environ.get("ASA_VLM_MODEL") or cfg["model"], api_key=cfg["api_key"], base_url=cfg["base_url"]
+            )
+        except Exception:
+            vision_llm = None
+
     return create_app(
         llm,
         formula_renderer=formula_renderer,
         out_dir=resolved_out,
         planner=build_deck_detailed,
         style=os.environ.get("ASA_STYLE"),  # style profile name (default: academic)
+        vision_llm=vision_llm,
     )

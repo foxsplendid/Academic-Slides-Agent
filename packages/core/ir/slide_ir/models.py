@@ -57,9 +57,40 @@ class TableBlock(_BlockBase):
     needs_human_check: bool = True  # PDF-extracted tables default to human review
 
 
+class BulletItem(BaseModel):
+    """A bullet with optional sub-bullets (one nesting level)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    children: list[str] = Field(default_factory=list)
+
+
 class BulletBlock(_BlockBase):
     type: Literal["bullets"] = "bullets"
-    items: list[str] = Field(min_length=1)
+    items: list[Union[str, BulletItem]] = Field(min_length=1)
+
+
+class CalloutBlock(_BlockBase):
+    """An emphasized takeaway/conclusion band (rendered as a tinted card with an accent edge)."""
+
+    type: Literal["callout"] = "callout"
+    text: str = Field(min_length=1)
+    label: Optional[str] = None  # short tag, e.g. "结论" / "Take-away"
+
+
+class StatItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    value: str = Field(min_length=1)  # the big number, e.g. "94%" / "r=0.938"
+    label: str = ""  # what it measures
+
+
+class StatBlock(_BlockBase):
+    """1-4 key numbers as big-number cards in a row."""
+
+    type: Literal["stat"] = "stat"
+    items: list[StatItem] = Field(min_length=1, max_length=4)
 
 
 class FigureBlock(_BlockBase):
@@ -111,7 +142,7 @@ class DiagramBlock(_BlockBase):
 
 
 Block = Annotated[
-    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock, ChartBlock, DiagramBlock],
+    Union[FormulaBlock, TableBlock, BulletBlock, FigureBlock, ChartBlock, DiagramBlock, CalloutBlock, StatBlock],
     Field(discriminator="type"),
 ]
 

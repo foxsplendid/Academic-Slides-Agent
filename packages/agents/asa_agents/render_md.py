@@ -11,7 +11,12 @@ def deck_to_markdown(deck: Deck) -> str:
         lines.append(f"## {i}. {s.title}  `[{s.layout_type.value}]`")
         for b in s.blocks:
             if b.type == "bullets":
-                lines.extend(f"- {item}" for item in b.items)
+                for item in b.items:
+                    if isinstance(item, str):
+                        lines.append(f"- {item}")
+                    else:
+                        lines.append(f"- {item.text}")
+                        lines.extend(f"  - {c}" for c in item.children)
             elif b.type == "figure":
                 lines.append(f"- _[figure: {b.asset_id}]_ {b.caption or ''}".rstrip())
             elif b.type == "chart":
@@ -23,6 +28,11 @@ def deck_to_markdown(deck: Deck) -> str:
             elif b.type == "diagram":
                 names = ", ".join(n.label for n in b.nodes)
                 lines.append(f"- _[diagram: {b.diagram_type}]_ {b.title or ''} nodes=({names})".rstrip())
+            elif b.type == "callout":
+                lines.append(f"- _[callout]_ **{b.label or '要点'}**: {b.text}")
+            elif b.type == "stat":
+                stats = " | ".join(f"{it.value} ({it.label})" if it.label else it.value for it in b.items)
+                lines.append(f"- _[stat]_ {stats}")
         if s.speaker_notes:
             lines.append(f"> 讲稿: {s.speaker_notes}")
         lines.append("")

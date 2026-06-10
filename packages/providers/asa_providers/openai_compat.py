@@ -46,3 +46,22 @@ class OpenAICompatibleLLM:
             kwargs["max_tokens"] = self.max_tokens
         response = self._client.chat.completions.create(**kwargs)
         return response.choices[0].message.content or ""
+
+    def complete_vision(self, prompt: str, *, images, system: Optional[str] = None) -> str:
+        """Multimodal completion (OpenAI-compatible image_url content parts). Requires a vision model."""
+        import base64
+        from pathlib import Path
+
+        content: list[dict] = [{"type": "text", "text": prompt}]
+        for img in images:
+            b64 = base64.b64encode(Path(img).read_bytes()).decode()
+            content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}})
+        messages: list[dict] = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": content})
+        kwargs = {"model": self.model, "messages": messages, "temperature": self.temperature}
+        if self.max_tokens:
+            kwargs["max_tokens"] = self.max_tokens
+        response = self._client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content or ""

@@ -35,7 +35,7 @@ def _asa_checkpointer():
     ]
     return MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=allowed))
 
-from pptx_compiler import compile_deck
+from pptx_compiler import compile_deck, lint_compiled_deck
 from slide_ir import Deck, GenerationState, Phase
 
 from .critic import critique_deck
@@ -52,11 +52,14 @@ def build_graph(
     checkpointer=None,
     planner=build_outline,
     style=None,
+    vision_llm=None,
 ):
     """Build and compile the orchestration graph. Inject `llm`/`formula_renderer` via closure.
 
     `planner(assets, tables, llm, *, feedback=None) -> Deck` defaults to the single-shot
-    `build_outline`; pass `build_deck_detailed` for the two-stage detailed builder.
+    `build_outline`; pass `build_deck_detailed` for the two-stage detailed builder. When
+    ``vision_llm`` is provided, a VLM visual critique (closed defect taxonomy) joins the quality
+    loop after the deterministic checks pass.
     """
     out_dir_path = Path(out_dir)
 
@@ -96,6 +99,26 @@ def build_graph(
 
     def critic(state: GenerationState) -> dict:
         findings = critique_deck(state.slides, state.evidence)
+        # Quality loop, cheapest first: IR checks -> exact geometry lint -> (opt-in) VLM visual check.
+        # The lint/VLM stages compile a throwaway render; both fail open (a broken check never blocks).
+        if not findings:
+            lint_dir = out_dir_path / "runs" / state.job_id
+            lint_pptx = lint_dir / "lint.pptx"
+            try:
+                lint_dir.mkdir(parents=True, exist_ok=True)
+                deck = Deck(deck_id=state.job_id, slides=state.slides)
+                resolver = {a.asset_id: a.content_ref for a in state.evidence if a.kind == "figure"}
+                compile_deck(deck, lint_pptx, asset_resolver=resolver, style=style)  # no formula sidecar: fast
+                findings = lint_compiled_deck(deck, lint_pptx)
+            except Exception:
+                findings = []
+            if not findings and vision_llm is not None:
+                try:
+                    from .visual_critic import visual_critique
+
+                    findings = visual_critique(state.slides, lint_pptx, vision_llm, lint_dir / "vlm")
+                except Exception:
+                    findings = []
         return {"critic_findings": findings, "phase": Phase.CRITIQUING}
 
     def after_critic(state: GenerationState) -> str:

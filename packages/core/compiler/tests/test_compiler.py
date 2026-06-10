@@ -544,7 +544,7 @@ def test_two_column_table_table_left_text_right(tmp_path):
 def test_text_only_slides_keep_vertical_stack(tmp_path):
     deck = _slide_of(LayoutType.BULLET_EVIDENCE, [BulletBlock(items=["a"]), BulletBlock(items=["b"])])
     shapes = _shapes_of(tmp_path, deck)
-    boxes = [s for s in shapes if s.has_text_frame and s.text_frame.text in ("• a", "• b")]
+    boxes = [s for s in shapes if s.has_text_frame and s.text_frame.text in ("a", "b")]
     assert len(boxes) == 2 and boxes[0].left == boxes[1].left  # stacked, same x
 
 
@@ -630,3 +630,88 @@ def test_cover_has_no_page_number_but_has_rule(tmp_path):
     shapes = list(Presentation(str(out)).slides[0].shapes)
     assert not any(s.has_text_frame and s.text_frame.text == "1" for s in shapes)  # no page no on cover
     assert any(s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for s in shapes)  # centered rule
+
+
+# --- content blocks: nested bullets + callout + stat ----------------------------
+
+
+def test_nested_bullets_render_with_levels(tmp_path):
+    from slide_ir import BulletItem
+
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [BulletBlock(items=["top", BulletItem(text="parent", children=["child1", "child2"])])],
+    )
+    out = compile_deck(deck, tmp_path / "n.pptx")
+    box = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_text_frame and "parent" in s.text_frame.text)
+    paras = box.text_frame.paragraphs
+    texts = [p.text for p in paras]
+    assert texts == ["top", "parent", "child1", "child2"]
+    # hanging indent set: child marL > parent marL (real PPT bullet formatting)
+    marl = [int(p._p.find("{http://schemas.openxmlformats.org/drawingml/2006/main}pPr").get("marL")) for p in paras]
+    assert marl[2] > marl[0]  # nested level indents deeper
+
+
+def test_callout_renders_tinted_card_with_accent_edge(tmp_path):
+    from slide_ir import CalloutBlock
+
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [BulletBlock(items=["a"]), CalloutBlock(label="结论", text="key point")])
+    out = compile_deck(deck, tmp_path / "co.pptx")
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    from pptx_compiler.style import ACADEMIC
+
+    cards = [s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and s.has_text_frame and "key point" in s.text_frame.text]
+    assert cards and cards[0].fill.fore_color.rgb == ACADEMIC.table_band_rgb
+    edges = [s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and not s.text_frame.text and s.fill.fore_color.rgb == ACADEMIC.accent_rgb]
+    assert edges  # accent edge present (plus the title accent bar also matches; either proves the color)
+
+
+def test_stat_renders_big_number_cards(tmp_path):
+    from slide_ir import StatBlock, StatItem
+
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [StatBlock(items=[StatItem(value="94%", label="acc"), StatItem(value="r=0.94", label="corr"), StatItem(value="N=320", label="samples")])],
+    )
+    out = compile_deck(deck, tmp_path / "st.pptx")
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    cards = [s for s in shapes if s.has_text_frame and any(v in s.text_frame.text for v in ("94%", "r=0.94", "N=320"))]
+    assert len(cards) == 3
+    assert len({c.left for c in cards}) == 3  # side by side
+    from pptx_compiler.style import ACADEMIC
+
+    run = cards[0].text_frame.paragraphs[0].runs[0]
+    assert run.font.bold and run.font.color.rgb == ACADEMIC.accent_rgb
+
+
+# --- geometry lint --------------------------------------------------------------
+
+
+def test_lint_flags_crammed_text(tmp_path):
+    from pptx_compiler import lint_compiled_deck
+
+    huge = ["这是一条非常长的要点内容用来塞满文本框" * 6 for _ in range(9)]
+    deck = _slide_of(LayoutType.FIGURE_CAPTION, [FigureBlock(asset_id="f1"), BulletBlock(items=huge)])
+    img = _one_px_png(tmp_path)
+    out = compile_deck(deck, tmp_path / "cram.pptx", asset_resolver={"f1": str(img)})
+    findings = lint_compiled_deck(deck, out)
+    assert any("crammed" in f and "slide 's'" in f for f in findings)
+
+
+def test_lint_flags_tiny_figure(tmp_path):
+    from pptx_compiler import lint_compiled_deck
+
+    wide = _png(tmp_path / "wide.png", 4000, 40)  # extreme aspect -> scales to a sliver
+    deck = _slide_of(LayoutType.FIGURE_CAPTION, [FigureBlock(asset_id="f1"), BulletBlock(items=["a", "b"])])
+    out = compile_deck(deck, tmp_path / "tiny.pptx", asset_resolver={"f1": str(wide)})
+    findings = lint_compiled_deck(deck, out)
+    assert any("very small" in f for f in findings)
+
+
+def test_lint_clean_deck_no_findings(tmp_path):
+    from pptx_compiler import lint_compiled_deck
+
+    img = _png(tmp_path / "sq.png", 600, 450)
+    deck = _slide_of(LayoutType.FIGURE_CAPTION, [FigureBlock(asset_id="f1"), BulletBlock(items=["短要点一", "短要点二", "短要点三"])])
+    out = compile_deck(deck, tmp_path / "clean.pptx", asset_resolver={"f1": str(img)})
+    assert lint_compiled_deck(deck, out) == []

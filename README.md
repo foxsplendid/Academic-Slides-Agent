@@ -96,6 +96,7 @@ The web UI lives in `apps/web` (`npm install && npm run dev`).
 | `ASA_MAX_TOKENS` | optional output-token cap (latency) |
 | `ASA_SPLIT_FIGURES` | opt-in composite-figure panel splitting |
 | `ASA_NATIVE_FORMULA` | opt-in experimental native-editable OMML formulas |
+| `ASA_VLM_CRITIC` / `ASA_VLM_MODEL` | opt-in VLM visual critique (closed defect taxonomy); model override |
 | `ASA_DEBUG_TIMING` | emit a generation timing/concurrency probe |
 | `ASA_HOST` / `ASA_PORT` / `ASA_CORS_ORIGINS` / `ASA_OUT_DIR` | service host/port/CORS/output dir |
 

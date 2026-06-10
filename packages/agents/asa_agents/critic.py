@@ -23,7 +23,7 @@ MIN_TITLE_SIM = 0.85  # >= this normalized-title similarity counts two slides as
 
 # Layouts that carry no content blocks by design.
 _STRUCTURAL_LAYOUTS = {LayoutType.TITLE, LayoutType.SECTION}
-_CONTENT_BLOCK_TYPES = {"bullets", "table", "figure", "chart", "diagram", "formula"}
+_CONTENT_BLOCK_TYPES = {"bullets", "table", "figure", "chart", "diagram", "formula", "callout", "stat"}
 
 
 def _norm_title(t: str) -> str:
@@ -92,14 +92,16 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
         # Per-block overflow / reference checks.
         for b in s.blocks:
             if b.type == "bullets":
-                if len(b.items) > MAX_BULLETS:
+                texts = [it if isinstance(it, str) else it.text for it in b.items]
+                n_lines = sum(1 + (0 if isinstance(it, str) else len(it.children)) for it in b.items)
+                if n_lines > MAX_BULLETS:
                     findings.append(
-                        f"{tag}: bullet list too long ({len(b.items)} > {MAX_BULLETS} items)"
+                        f"{tag}: bullet list too long ({n_lines} > {MAX_BULLETS} items)"
                     )
-                for item in b.items:
-                    if len(item) > MAX_BULLET_CHARS:
+                for text in texts:
+                    if len(text) > MAX_BULLET_CHARS:
                         findings.append(
-                            f"{tag}: bullet item too long ({len(item)} > {MAX_BULLET_CHARS} chars)"
+                            f"{tag}: bullet item too long ({len(text)} > {MAX_BULLET_CHARS} chars)"
                         )
                         break
             elif b.type == "table":
