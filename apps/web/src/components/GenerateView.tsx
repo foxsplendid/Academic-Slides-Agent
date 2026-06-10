@@ -30,6 +30,7 @@ export function GenerateView() {
   const [dragging, setDragging] = useState(false);
   const [styleName, setStyleName] = useState("academic");
   const [parser, setParser] = useState("auto");
+  const [detail, setDetail] = useState("normal");
   const [splitFigures, setSplitFigures] = useState(false);
   const [vlmCritic, setVlmCritic] = useState(false);
   const [nativeFormula, setNativeFormula] = useState(false);
@@ -45,7 +46,7 @@ export function GenerateView() {
   async function start() {
     patchRun({ busy: true, error: null, log: [], stage: "parse", done: 0, total: 0 });
     try {
-      const res = await uploadJob(files, { styleName, parser, splitFigures, vlmCritic, nativeFormula });
+      const res = await uploadJob(files, { styleName, parser, detail, splitFigures, vlmCritic, nativeFormula });
       patchRun({ jobId: res.job_id, title: res.title, ingested: res.ingested, warnings: res.warnings, stage: "outline" });
       appendLog(`已摄取 ${res.ingested.files} 个文件 · ${res.ingested.text_pages} 页正文 · ${res.ingested.tables} 表 · ${res.ingested.figures} 图`);
       listJobs().then(setHistory);
@@ -138,6 +139,14 @@ export function GenerateView() {
               <option value="auto">自动(MinerU → 兜底级联)</option>
               <option value="mineru">MinerU 云解析(高保真)</option>
               <option value="pdfplumber">pdfplumber(本地,无需网络)</option>
+            </select>
+          </div>
+          <div>
+            <label className="field-label">详细程度</label>
+            <select className="field" value={detail} onChange={(e) => setDetail(e.target.value)}>
+              <option value="brief">简洁(6-8 页,要点精简)</option>
+              <option value="normal">标准(8-12 页)</option>
+              <option value="high">详尽(12-16 页,深入展开)</option>
             </select>
           </div>
         </div>

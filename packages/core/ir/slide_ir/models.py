@@ -21,6 +21,8 @@ class LayoutType(str, Enum):
 
     TITLE = "title"
     SECTION = "section"
+    TOC = "toc"  # agenda page: numbered section list
+    ENDING = "ending"  # closing page (thanks / Q&A)
     BULLET_EVIDENCE = "bullet_evidence"
     TWO_COLUMN_TABLE = "two_column_table"
     FORMULA_BANNER = "formula_banner"

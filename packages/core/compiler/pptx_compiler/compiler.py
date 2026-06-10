@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from pptx import Presentation
+from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
@@ -34,7 +35,7 @@ from .style import ACADEMIC, StyleProfile, get_style
 _DEFAULT_STYLE = ACADEMIC
 
 _MARGIN = Inches(0.5)
-_CENTERED = (LayoutType.TITLE, LayoutType.SECTION)
+_CENTERED = (LayoutType.TITLE, LayoutType.SECTION, LayoutType.ENDING)
 # Figures dominate; tables/formulas need room; bullets are compact. Used for weighted region heights.
 _BLOCK_WEIGHT = {
     "figure": 3.2,
@@ -218,6 +219,42 @@ def _add_page_number(slide, prs, style: StyleProfile, page_no: int) -> None:
     run.font.color.rgb = style.muted_rgb
 
 
+def _render_toc(slide, s: SlideIR, content: Region, style: StyleProfile) -> None:
+    """Numbered agenda: accent number chips + section titles, generous spacing."""
+    from pptx.enum.shapes import MSO_SHAPE
+    from pptx.enum.text import MSO_ANCHOR
+
+    items: list[str] = []
+    for b in s.blocks:
+        if isinstance(b, BulletBlock):
+            items.extend(it if isinstance(it, str) else it.text for it in b.items)
+    if not items:
+        return
+    left, top, width, height = content
+    row_h = min(int(Inches(0.85)), height // max(len(items), 1))
+    chip = int(Inches(0.5))
+    for i, text in enumerate(items[:10]):
+        y = top + i * row_h
+        c = slide.shapes.add_shape(MSO_SHAPE.OVAL, left, y + (row_h - chip) // 2, chip, chip)
+        c.fill.solid()
+        c.fill.fore_color.rgb = style.accent_rgb
+        c.line.fill.background()
+        c.shadow.inherit = False
+        cp = c.text_frame.paragraphs[0]
+        cp.alignment = PP_ALIGN.CENTER
+        run = cp.add_run()
+        run.text = str(i + 1)
+        run.font.size = Pt(16)
+        run.font.bold = True
+        run.font.name = style.latin_font
+        run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        box = slide.shapes.add_textbox(left + chip + int(Inches(0.3)), y, width - chip - int(Inches(0.3)), row_h)
+        box.text_frame.word_wrap = True
+        box.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        para = box.text_frame.paragraphs[0]
+        _blocks.add_rich_text(para, text, size=Pt(style.body_pt + 4), bold=True, style=style, color=style.text_rgb)
+
+
 def _render_slide(
     prs, slide, s: SlideIR, renderer: FormulaRenderer, asset_resolver=None, style=_DEFAULT_STYLE, page_no: int = 0
 ) -> None:
@@ -255,6 +292,10 @@ def _render_slide(
     content_h = int(slide_h) - content_top - int(_MARGIN)
     content = (content_left, content_top, content_width, content_h)
     gap = int(Inches(0.2))
+
+    if s.layout_type is LayoutType.TOC:
+        _render_toc(slide, s, content, style)
+        return
 
     regions = _regions_for(s, content, gap)
     if regions is not None:

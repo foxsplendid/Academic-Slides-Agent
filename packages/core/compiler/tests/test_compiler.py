@@ -741,3 +741,26 @@ def test_callout_and_node_text_color_explicit(tmp_path):
                         assert r.font.color.rgb == ACADEMIC.text_rgb
                         checked += 1
     assert checked >= 3
+
+
+# --- P1: toc + ending pages -----------------------------------------------------
+
+
+def test_toc_renders_numbered_agenda(tmp_path):
+    deck = _slide_of(LayoutType.TOC, [BulletBlock(items=["研究背景", "数据与方法", "结果与验证", "结论"])])
+    out = compile_deck(deck, tmp_path / "toc.pptx")
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    from pptx_compiler.style import ACADEMIC
+
+    chips = [s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and s.fill.fore_color.rgb == ACADEMIC.accent_rgb and s.has_text_frame and s.text_frame.text.isdigit()]
+    assert len(chips) == 4  # numbered accent chips 1-4
+    texts = " ".join(s.text_frame.text for s in shapes if s.has_text_frame)
+    assert "数据与方法" in texts
+
+
+def test_ending_is_centered_divider(tmp_path):
+    deck = Deck(deck_id="d", slides=[SlideIR(slide_id="e", layout_type=LayoutType.ENDING, title="谢谢聆听 · Q&A")])
+    out = compile_deck(deck, tmp_path / "end.pptx")
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    box = next(s for s in shapes if s.has_text_frame and "谢谢" in s.text_frame.text)
+    assert box.top > Inches(1.5)  # vertically centered region, not a content-slide title bar

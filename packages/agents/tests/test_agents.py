@@ -477,3 +477,28 @@ def test_figure_menu_carries_captions_and_warns_uncaptioned():
     menu = figure_menu(assets)
     assert "Fig. 1. Workflow" in menu  # caption hint present
     assert "慎用" in menu  # captionless figure flagged
+
+
+# --- P1: detail-level density contracts ----------------------------------------
+
+
+def test_detail_level_reaches_prompts():
+    assets, tables = _evidence()
+    llm = _EchoLLM(json.dumps({"slides": _plans(2)}))
+    captured = []
+    orig = llm.complete
+
+    def spy(prompt, *, system=None):
+        captured.append(prompt)
+        return orig(prompt, system=system)
+
+    llm.complete = spy
+    build_deck_detailed(assets, tables, llm, detail="high", parallel=False)
+    assert any("12-16" in p for p in captured)  # skeleton got the page budget
+    assert any("5-7" in p for p in captured)  # expansions got the bullet quota
+
+
+def test_unknown_detail_falls_back_to_normal():
+    from asa_agents.deepen import _detail_profile
+
+    assert _detail_profile("nonsense") == _detail_profile("normal")

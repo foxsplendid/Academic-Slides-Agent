@@ -32,6 +32,7 @@ export interface JobMeta {
 export interface GenOptions {
   styleName: string;
   parser: string;
+  detail: string;
   splitFigures: boolean;
   vlmCritic: boolean;
   nativeFormula: boolean;
@@ -42,6 +43,7 @@ export async function uploadJob(files: File[], opts: GenOptions) {
   for (const f of files) form.append("files", f);
   form.append("style_name", opts.styleName);
   form.append("parser", opts.parser);
+  form.append("detail", opts.detail);
   form.append("split_figures", String(opts.splitFigures));
   form.append("vlm_critic", String(opts.vlmCritic));
   form.append("native_formula", String(opts.nativeFormula));

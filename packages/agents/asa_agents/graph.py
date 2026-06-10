@@ -84,7 +84,13 @@ def build_graph(
         # On a retry, hand the planner the prior slides so it can repair only the flagged ones.
         prior = state.slides if feedback else None
         deck = planner(
-            state.evidence, state.tables, llm, feedback=feedback, progress=progress, prior_slides=prior
+            state.evidence,
+            state.tables,
+            llm,
+            feedback=feedback,
+            progress=progress,
+            prior_slides=prior,
+            detail=state.options.get("detail", "normal"),
         )
         outline = [
             {"slide_id": s.slide_id, "layout_type": s.layout_type.value, "title": s.title}

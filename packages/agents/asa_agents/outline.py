@@ -143,6 +143,7 @@ def build_outline(
     max_attempts: int = 3,
     progress=None,
     prior_slides=None,
+    **_: object,  # tolerate planner kwargs the single-shot builder doesn't use (e.g. detail)
 ) -> Deck:
     """Call the LLM and parse its output through the Slide-IR boundary (rejects non-IR).
 

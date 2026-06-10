@@ -20,9 +20,10 @@ MAX_BULLET_CHARS = 200
 MAX_TABLE_COLS = 6
 MAX_TABLE_ROWS = 12
 MIN_TITLE_SIM = 0.85  # >= this normalized-title similarity counts two slides as near-duplicates
+MAX_LAYOUT_RUN = 3  # > this many consecutive content slides sharing one layout reads stamped-out
 
 # Layouts that carry no content blocks by design.
-_STRUCTURAL_LAYOUTS = {LayoutType.TITLE, LayoutType.SECTION}
+_STRUCTURAL_LAYOUTS = {LayoutType.TITLE, LayoutType.SECTION, LayoutType.ENDING}
 _CONTENT_BLOCK_TYPES = {"bullets", "table", "figure", "chart", "diagram", "formula", "callout", "stat"}
 
 
@@ -46,6 +47,34 @@ def _duplicate_title_findings(slides: list[SlideIR]) -> list[str]:
                     f"near-duplicate slides {content[i].slide_id} & {content[j].slide_id}: "
                     f"'{content[i].title}' ≈ '{content[j].title}' — consider removing one"
                 )
+    return out
+
+
+def _monotony_findings(slides: list[SlideIR]) -> list[str]:
+    """Flag runs of >MAX_LAYOUT_RUN consecutive content slides with the SAME layout (visual monotony).
+    Names a slide inside the run so the repair loop can relayout it (a structural divider or a TOC
+    resets the run — the audience perceives runs within a section)."""
+    out: list[str] = []
+    run: list[SlideIR] = []
+
+    def flush() -> None:
+        if len(run) > MAX_LAYOUT_RUN:
+            mid = run[len(run) // 2]
+            out.append(
+                f"slide '{mid.slide_id}': {len(run)} consecutive slides share layout "
+                f"'{mid.layout_type.value}' — vary the composition (figure_left/two_content/big_figure/chart)"
+            )
+
+    for s in slides:
+        if s.layout_type in _STRUCTURAL_LAYOUTS or s.layout_type is LayoutType.TOC:
+            flush()
+            run = []
+        elif run and s.layout_type == run[-1].layout_type:
+            run.append(s)
+        else:
+            flush()
+            run = [s]
+    flush()
     return out
 
 
@@ -88,6 +117,8 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
             and "figure" not in kinds
         ):
             findings.append(f"{tag}: layout '{s.layout_type.value}' but no figure block")
+        if s.layout_type == LayoutType.TOC and "bullets" not in kinds:
+            findings.append(f"{tag}: layout 'toc' but no bullets block (the agenda items)")
 
         # Per-block overflow / reference checks.
         for b in s.blocks:
@@ -129,4 +160,5 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
                         break
 
     findings.extend(_duplicate_title_findings(slides))
+    findings.extend(_monotony_findings(slides))
     return findings

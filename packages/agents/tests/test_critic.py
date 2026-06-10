@@ -227,3 +227,34 @@ def test_distinct_titles_not_flagged():
         SlideIR(slide_id="s2", layout_type=LayoutType.BULLET_EVIDENCE, title="实验结果", blocks=[BulletBlock(items=["b"])]),
     ]
     assert not any("near-duplicate" in f for f in critique_deck(slides, []))
+
+
+# --- P1: layout monotony + toc consistency ------------------------------------
+
+
+def _content_slide(i, layout=LayoutType.BULLET_EVIDENCE):
+    return SlideIR(slide_id=f"m{i}", layout_type=layout, title=f"页{i}", blocks=[BulletBlock(items=[f"x{i}"])])
+
+
+def test_layout_monotony_flagged():
+    slides = [_content_slide(i) for i in range(5)]  # 5 consecutive bullet_evidence
+    findings = critique_deck(slides, [])
+    hit = [f for f in findings if "consecutive slides share layout" in f]
+    assert hit and "slide '" in hit[0]  # repair-routable, names a slide in the run
+
+
+def test_layout_variety_not_flagged():
+    layouts = [LayoutType.BULLET_EVIDENCE, LayoutType.BULLET_EVIDENCE, LayoutType.BULLET_EVIDENCE]
+    slides = [_content_slide(i, l) for i, l in enumerate(layouts)]  # run of 3 == allowed
+    assert not any("consecutive" in f for f in critique_deck(slides, []))
+
+
+def test_section_divider_resets_monotony_run():
+    slides = [_content_slide(0), _content_slide(1), SlideIR(slide_id="d", layout_type=LayoutType.SECTION, title="结果", blocks=[]), _content_slide(2), _content_slide(3)]
+    assert not any("consecutive" in f for f in critique_deck(slides, []))
+
+
+def test_toc_without_bullets_flagged():
+    s = SlideIR(slide_id="t", layout_type=LayoutType.TOC, title="目录", blocks=[])
+    findings = critique_deck([s], [])
+    assert any("'toc'" in f for f in findings)
