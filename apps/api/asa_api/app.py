@@ -481,7 +481,12 @@ def create_app(
                     run_dir.mkdir(parents=True, exist_ok=True)
                     deck = Deck(deck_id=job_id, slides=slides)
                     evidence = _get(values, "evidence") or []
-                    resolver = {a.asset_id: a.content_ref for a in evidence if _get(a, "kind") == "figure"}
+                    # Checkpoint round-trips deserialize models to dicts — never use attribute access here.
+                    resolver = {
+                        _get(a, "asset_id"): _get(a, "content_ref")
+                        for a in evidence
+                        if str(_get(a, "kind", "")) in ("figure", "EvidenceKind.FIGURE")
+                    }
                     src = run_dir / "preview.pptx"
                     compile_deck(deck, src, asset_resolver=resolver, style=_get(values, "style") or style)
                 png_dir = run_dir / "preview_png"

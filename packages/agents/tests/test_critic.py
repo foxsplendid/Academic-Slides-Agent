@@ -258,3 +258,44 @@ def test_toc_without_bullets_flagged():
     s = SlideIR(slide_id="t", layout_type=LayoutType.TOC, title="目录", blocks=[])
     findings = critique_deck([s], [])
     assert any("'toc'" in f for f in findings)
+
+
+def test_overloaded_slide_flagged():
+    from slide_ir import CalloutBlock, DiagramBlock, DiagramNode, StatBlock, StatItem
+
+    slides = [
+        SlideIR(
+            slide_id="busy",
+            layout_type=LayoutType.BULLET_EVIDENCE,
+            title="x",
+            blocks=[
+                StatBlock(items=[StatItem(value="1")]),
+                DiagramBlock(nodes=[DiagramNode(id="a", label="a")]),
+                BulletBlock(items=["p"]),
+                CalloutBlock(text="t"),
+            ],
+        ),
+        # two heavy visuals stacked on a plain layout
+        SlideIR(
+            slide_id="heavy2",
+            layout_type=LayoutType.BULLET_EVIDENCE,
+            title="y",
+            blocks=[
+                DiagramBlock(nodes=[DiagramNode(id="a", label="a")]),
+                TableBlock(columns=["c"], rows=[["1"]]),
+            ],
+        ),
+        # a 2x2 grid page is NOT overloaded by design
+        SlideIR(
+            slide_id="grid",
+            layout_type=LayoutType.FIGURE_GRID,
+            title="g",
+            blocks=[FigureBlock(asset_id="f1"), FigureBlock(asset_id="f2"), FigureBlock(asset_id="f3"), BulletBlock(items=["p"])],
+        ),
+    ]
+    ev = [EvidenceAsset(asset_id=f"f{i}", kind="figure", content_ref="x.png", source="p.pdf") for i in (1, 2, 3)]
+    findings = critique_deck(slides, ev)
+    joined = " || ".join(findings)
+    assert "slide 'busy'" in joined and "blocks on one slide" in joined
+    assert "slide 'heavy2'" in joined and "heavy visual blocks" in joined
+    assert "slide 'grid'" not in joined

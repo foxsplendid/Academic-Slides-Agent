@@ -21,6 +21,8 @@ MAX_TABLE_COLS = 6
 MAX_TABLE_ROWS = 12
 MIN_TITLE_SIM = 0.85  # >= this normalized-title similarity counts two slides as near-duplicates
 MAX_STAT_ITEMS = 4  # more cards than fit one row -> repair finding (schema no longer hard-rejects)
+MAX_BLOCKS_PER_SLIDE = 3  # vertical stacking beyond this is always cramped (figure_grid exempt)
+_HEAVY_BLOCKS = {"figure", "chart", "diagram", "table"}
 MAX_LAYOUT_RUN = 3  # > this many consecutive content slides sharing one layout reads stamped-out
 
 # Layouts that carry no content blocks by design.
@@ -120,6 +122,18 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
             findings.append(f"{tag}: layout '{s.layout_type.value}' but no figure block")
         if s.layout_type == LayoutType.TOC and "bullets" not in kinds:
             findings.append(f"{tag}: layout 'toc' but no bullets block (the agenda items)")
+        # density: an overloaded page is always cramped; grids carry their figures by design
+        if s.layout_type not in (LayoutType.FIGURE_GRID, LayoutType.TOC) and len(s.blocks) > MAX_BLOCKS_PER_SLIDE:
+            findings.append(
+                f"{tag}: {len(s.blocks)} blocks on one slide (> {MAX_BLOCKS_PER_SLIDE}) — cramped; keep at most "
+                f"one heavy visual + one callout/stat + bullets, fold the rest into the bullets"
+            )
+        heavy = [k for k in (b.type for b in s.blocks) if k in _HEAVY_BLOCKS]
+        if s.layout_type not in (LayoutType.FIGURE_GRID, LayoutType.TWO_CONTENT) and len(heavy) > 1:
+            findings.append(
+                f"{tag}: {len(heavy)} heavy visual blocks ({'+'.join(heavy)}) stacked on one slide — keep one, "
+                f"move or drop the others"
+            )
         if s.layout_type == LayoutType.CANVAS:
             canvas_blocks = [b for b in s.blocks if b.type == "canvas"]
             if len(canvas_blocks) != 1:

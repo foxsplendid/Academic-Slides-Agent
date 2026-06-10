@@ -61,7 +61,7 @@ def _ingest_pdf(
 
         # v2: junk-image filter + caption hygiene (bump to invalidate caches parsed by older logic).
         # Suffix joins the cache dir name — keep it Windows-safe (no ':').
-        parser_key = os.environ.get("ASA_PDF_PARSER", "auto").lower() + "-v2"
+        parser_key = os.environ.get("ASA_PDF_PARSER", "auto").lower() + "-v3"
         return cached_pdf(
             path,
             parser_key=parser_key,

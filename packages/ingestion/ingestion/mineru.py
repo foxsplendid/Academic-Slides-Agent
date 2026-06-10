@@ -165,7 +165,13 @@ def parse_mineru_content_list(
                 queue = fig_captions.get(page)
                 if queue:
                     caption = queue.pop(0)
-            parent_id = f"{stem}:fig{fig_i}:p{page}"
+            # Short, echo-safe id: the LLM must repeat ids verbatim, and 100+ char filename-based
+            # ids get abbreviated into nonexistent ones ("fig3"). 2-char stem digest keeps ids
+            # unique when multiple PDFs are ingested into one job.
+            import hashlib as _hl
+
+            _h2 = _hl.sha1(stem.encode("utf-8", "ignore")).hexdigest()[:2]
+            parent_id = f"fig{fig_i}_p{page}_{_h2}"
             result.assets.append(
                 EvidenceAsset(
                     asset_id=parent_id,
@@ -181,7 +187,7 @@ def parse_mineru_content_list(
                 for j, panel in enumerate(split_composite(dst, workspace, f"{stem}_fig{fig_i}")):
                     result.assets.append(
                         EvidenceAsset(
-                            asset_id=f"{parent_id}:panel{j}",
+                            asset_id=f"{parent_id}{chr(97 + (j % 26))}",  # fig3_p4_ab -> panels a/b/c
                             kind="figure",
                             content_ref=str(panel),
                             source=source,

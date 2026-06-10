@@ -108,11 +108,13 @@ block 之一:
 "这说明了什么"的解读,或改用一个 callout block 表达该解读(数据/方法页可省略)
 - speaker_notes:讲者照着念的口播稿,**3-4 句即可**
 - **简洁高密度**:每条 bullet 一句话讲清、放得进一行,不要冗长展开、不要重复正文;整页输出尽量精炼
+- **构图预算**:每页**至多 3 个 block**——至多 1 个重图形块(figure/chart/diagram/table)、至多 1 个轻强调块(callout 或 stat,二选一)、其余为 bullets;塞不下就精简,**不要四种块挤一页**;反之只有一个 callout 加两三条 bullet 的页面过空——要么充实要点,要么本就不该单列此页
 - **版式一致**:若 layout_type 是 `title`/`section`/`ending`(分隔页),只给标题、不要输出任何内容 block;若本页确有正文要讲,本就不该是分隔页,请按 `bullet_evidence` 产出正文
 - **目录页**:若 layout_type 是 `toc`,只输出一个 bullets block,每条是一个章节名(与章节页一致,短语,不带解读),不要 "→ " 结尾条
 - 术语/符号/方法名/引用保持原文(Random Forest、SHAP、O₂、r=0.938、Lyons et al., 2014 等);**论文核心术语全篇统一**(如 hygrometer=湿度计/含水量计,绝不可与温度计/温压计混写)
 - `**强调**`只给承载结论的关键词或数字,**宁少勿多**——强调泛滥等于没有强调
-- 若给了有效图 id:**沿用骨架规划的图类版式**(figure_caption/figure_left/big_figure/figure_grid),放对应 figure block(asset_id 用给定 id,grid 页放多个)+ 一句 caption,并配要点 bullet
+- 若给了有效图 id:**沿用骨架规划的图类版式**(figure_caption/figure_left/big_figure/figure_grid),放对应 figure block(**asset_id 必须一字不差照抄给定 id**,grid 页放多个)+ 一句 caption,并配要点 bullet
+- **caption 写实**:图注只描述所选图**当前画面**;若是拆分出的子图,不要提及其它子图的字母(A/B/C)或内容
 只输出该页 JSON,不要解释、不要 markdown 围栏。"""
 
 
@@ -292,6 +294,7 @@ def _canvas_issues(slide: SlideIR) -> list[str]:
 _REPAIR_SYSTEM = """你在修正一页已生成的科研幻灯片。给你该页当前 JSON 和它的问题清单,请**只修复这些问题**,\
 保持该页主题、证据、术语、配图/图表/图件不变。重新输出**该页**合法 Slide-IR JSON(同 schema:slide_id/\
 layout_type/title/blocks/speaker_notes/provenance)。
+若问题是「图类版式但无 figure block」:你没有可用图清单,**把 layout_type 改为 bullet_evidence**,不要发明 asset_id。
 block 的 type **只能是**:bullets / figure / table / formula / chart / diagram / callout / stat / canvas,\
 不存在其它容器或栏位类型(版面由 layout_type 决定,不要发明 "column" 之类的块)。
 不要解释、不要 markdown 围栏。"""

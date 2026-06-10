@@ -110,8 +110,11 @@ def figure_menu(assets: list[EvidenceAsset], *, cap_chars: int = 200) -> str:
     for a in assets:
         if a.kind != "figure":
             continue
-        cap = (a.locator or {}).get("caption", "") if isinstance(a.locator, dict) else ""
+        loc = a.locator if isinstance(a.locator, dict) else {}
+        cap = loc.get("caption", "")
         note = cap[:cap_chars] if cap else "(无图注,可能是装饰图/子图,慎用)"
+        if loc.get("panel") is not None:  # split sub-panel: the caption belongs to the WHOLE figure
+            note = f"[原图的第 {int(loc['panel']) + 1} 个子图;整图图注:{note}](描述时只讲此子图画面,勿提其它子图字母)"
         lines.append(f"- {a.asset_id} —— {note}")
     return "\n".join(lines)
 
