@@ -137,8 +137,9 @@ def render_callout(slide, block, region: Region, style: StyleProfile = ACADEMIC)
     left, top, width, height = region
     card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
     card.fill.solid()
-    card.fill.fore_color.rgb = style.table_band_rgb
-    card.line.fill.background()
+    card.fill.fore_color.rgb = style.card_fill_rgb
+    card.line.color.rgb = style.card_line_rgb
+    card.line.width = Pt(0.75)
     card.shadow.inherit = False
     edge = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, int(Pt(5)), height)
     edge.fill.solid()
@@ -158,7 +159,8 @@ def render_callout(slide, block, region: Region, style: StyleProfile = ACADEMIC)
         tag.font.name = style.latin_font
         tag.font.color.rgb = style.accent_rgb
         _set_ea(tag.font, style.ea_font)
-    add_rich_text(para, block.text, size=Pt(style.body_pt), style=style)
+    # Explicit body color: shape-style text defaults to white and would vanish on the light card.
+    add_rich_text(para, block.text, size=Pt(style.body_pt), style=style, color=style.text_rgb)
     return card
 
 
@@ -176,8 +178,9 @@ def render_stat(slide, block, region: Region, style: StyleProfile = ACADEMIC):
         x = left + i * (card_w + gap)
         card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, top, card_w, height)
         card.fill.solid()
-        card.fill.fore_color.rgb = style.table_band_rgb
-        card.line.fill.background()
+        card.fill.fore_color.rgb = style.card_fill_rgb
+        card.line.color.rgb = style.card_line_rgb
+        card.line.width = Pt(0.75)
         card.shadow.inherit = False
         tf = card.text_frame
         tf.word_wrap = True

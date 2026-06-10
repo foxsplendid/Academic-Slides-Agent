@@ -34,6 +34,11 @@ class StyleProfile:
     accent_bar: bool = True  # thin accent rule under content-slide titles
     page_numbers: bool = True  # small page number bottom-right (content slides)
     muted_rgb: RGBColor = RGBColor(0x80, 0x80, 0x80)  # page numbers / secondary text
+    # Text INSIDE autoshapes must be explicit: PowerPoint's shape style defaults it to white,
+    # which vanishes on our light card fills. Tokens follow the academic palette (#333 body).
+    text_rgb: RGBColor = RGBColor(0x33, 0x33, 0x33)  # body text on cards/nodes
+    card_fill_rgb: RGBColor = RGBColor(0xF5, 0xF7, 0xFA)  # callout/stat card background
+    card_line_rgb: RGBColor = RGBColor(0xD0, 0xD7, 0xE0)  # card border
     # --- data graphics ---
     chart_palette: tuple[RGBColor, ...] = (
         RGBColor(0x2F, 0x5E, 0x8E),  # deep blue

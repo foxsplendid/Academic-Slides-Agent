@@ -661,7 +661,7 @@ def test_callout_renders_tinted_card_with_accent_edge(tmp_path):
     from pptx_compiler.style import ACADEMIC
 
     cards = [s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and s.has_text_frame and "key point" in s.text_frame.text]
-    assert cards and cards[0].fill.fore_color.rgb == ACADEMIC.table_band_rgb
+    assert cards and cards[0].fill.fore_color.rgb == ACADEMIC.card_fill_rgb
     edges = [s for s in shapes if s.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and not s.text_frame.text and s.fill.fore_color.rgb == ACADEMIC.accent_rgb]
     assert edges  # accent edge present (plus the title accent bar also matches; either proves the color)
 
@@ -715,3 +715,29 @@ def test_lint_clean_deck_no_findings(tmp_path):
     deck = _slide_of(LayoutType.FIGURE_CAPTION, [FigureBlock(asset_id="f1"), BulletBlock(items=["短要点一", "短要点二", "短要点三"])])
     out = compile_deck(deck, tmp_path / "clean.pptx", asset_resolver={"f1": str(img)})
     assert lint_compiled_deck(deck, out) == []
+
+
+def test_callout_and_node_text_color_explicit(tmp_path):
+    """Text inside autoshapes must carry an explicit color (shape style defaults to white)."""
+    from slide_ir import CalloutBlock, DiagramBlock, DiagramNode
+
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [
+            CalloutBlock(label="结论", text="正文内容"),
+            DiagramBlock(diagram_type="flow", nodes=[DiagramNode(id="a", label="步骤一"), DiagramNode(id="b", label="步骤二")]),
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "ct.pptx")
+    from pptx_compiler.style import ACADEMIC
+
+    checked = 0
+    for sh in Presentation(str(out)).slides[0].shapes:
+        if sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and sh.has_text_frame and sh.text_frame.text.strip():
+            for p in sh.text_frame.paragraphs:
+                for r in p.runs:
+                    if r.text.strip() in ("正文内容", "步骤一", "步骤二"):
+                        assert r.font.color.type is not None, f"run {r.text!r} inherits shape-style (white) color"
+                        assert r.font.color.rgb == ACADEMIC.text_rgb
+                        checked += 1
+    assert checked >= 3

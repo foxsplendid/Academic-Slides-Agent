@@ -86,7 +86,10 @@ def _env_overrides(overrides: dict[str, Optional[str]]):
 
 
 def _png_sorted(folder: Path) -> list[Path]:
-    pngs = list(folder.glob("*.png")) + list(folder.glob("*.PNG"))
+    # Dedupe by name: Windows globbing is case-insensitive, so *.png + *.PNG would list every
+    # frame twice (the "every slide shows twice" bug).
+    uniq = {p.name.lower(): p for p in list(folder.glob("*.png")) + list(folder.glob("*.PNG"))}
+    pngs = list(uniq.values())
     pngs.sort(key=lambda p: int(re.sub(r"\D", "", p.stem) or 0))
     return pngs
 

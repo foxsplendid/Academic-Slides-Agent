@@ -173,3 +173,13 @@ def test_approve_409_when_not_awaiting(tmp_path):
     r = client.post("/jobs/upload", files=[("files", ("d.csv", open(_csv(tmp_path), "rb"), "text/csv"))])
     job_id = r.json()["job_id"]
     assert client.post(f"/jobs/{job_id}/approve", json={"approved": True}).status_code == 409
+
+
+def test_png_sorted_dedupes_case_insensitive_glob(tmp_path):
+    from asa_api.app import _png_sorted
+
+    for i in (1, 2, 10):
+        (tmp_path / f"Slide{i}.PNG").write_bytes(b"x")
+    pngs = _png_sorted(tmp_path)
+    assert len(pngs) == 3  # not 6 (Windows globs are case-insensitive)
+    assert [p.stem for p in pngs] == ["Slide1", "Slide2", "Slide10"]  # numeric order

@@ -36,7 +36,8 @@ def _node(slide, left, top, w, h, label, style: StyleProfile):
         pass
     para = tf.paragraphs[0]
     para.alignment = PP_ALIGN.CENTER
-    add_rich_text(para, label, size=Pt(12), style=style)
+    # Explicit color: shape-style text defaults to white, invisible on the light node fill.
+    add_rich_text(para, label, size=Pt(12), style=style, color=style.text_rgb)
     return shape
 
 
