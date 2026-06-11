@@ -192,6 +192,41 @@ def _fix_structural_layout(slide: SlideIR) -> SlideIR:
     return slide
 
 
+_FIG_LAYOUTS = {"figure_caption", "figure_left", "big_figure", "figure_grid"}
+
+
+def _plan_ids(p: dict) -> list[str]:
+    ids = p.get("figure_ids") or ([p["figure_id"]] if p.get("figure_id") else [])
+    return [f for f in ids if f]
+
+
+def _plan_errors(plans: list[dict], figs_by_id: dict[str, str]) -> list[str]:
+    """Hard plan defects the boundary can name precisely: invented figure ids and figure-led pages
+    with no valid figure. Caught here they cost one skeleton re-ask; caught later they burn the
+    whole repair budget and ship promised-but-empty figure pages (the R6 regression)."""
+    errs: list[str] = []
+    for p in plans:
+        ids = _plan_ids(p)
+        bad = [f for f in ids if f not in figs_by_id]
+        if bad:
+            errs.append(f"{p.get('slide_id')}: figure_ids 含不存在的 id {bad}")
+        if p.get("layout_type") in _FIG_LAYOUTS and not [f for f in ids if f in figs_by_id]:
+            errs.append(f"{p.get('slide_id')}: 图版式但没有有效 figure_ids——填真实 id 或改用非图版式")
+    return errs
+
+
+def _sanitize_plans(plans: list[dict], figs_by_id: dict[str, str]) -> None:
+    """Deterministic last resort after the re-ask: strip invented ids and demote figure-led plans
+    without figures to bullet_evidence — a bad roll degrades gracefully instead of shipping empty
+    figure pages."""
+    for p in plans:
+        good = [f for f in _plan_ids(p) if f in figs_by_id]
+        p["figure_ids"] = good
+        p.pop("figure_id", None)
+        if p.get("layout_type") in _FIG_LAYOUTS and not good:
+            p["layout_type"] = "bullet_evidence"
+
+
 def _skeleton(
     assets: list[EvidenceAsset],
     tables: list[TableBlock],
@@ -220,6 +255,18 @@ def _skeleton(
     raw = llm.complete(prompt, system=system)
     data = json.loads(_extract_json(raw))
     slides = data.get("slides", []) if isinstance(data, dict) else []
+    figs_by_id = _figures_by_id(assets)
+    errs = _plan_errors(slides, figs_by_id)
+    if errs:  # one cheap re-ask at the skeleton stage beats burning the repair budget downstream
+        retry = prompt + "\n\n上一稿骨架有以下硬伤,必须修复(figure_ids 只能从可用图清单一字不差选取):\n" + "\n".join(f"- {e}" for e in errs)
+        try:
+            data2 = json.loads(_extract_json(llm.complete(retry, system=system)))
+            slides2 = data2.get("slides", []) if isinstance(data2, dict) else []
+            if slides2:
+                slides = slides2
+        except Exception:
+            pass
+        _sanitize_plans(slides, figs_by_id)
     return _dedup_plans(slides)
 
 
@@ -282,7 +329,7 @@ def _expand_slide(
         raw = llm.complete(prompt, system=system)
         try:
             d = _normalize_blocks(json.loads(_extract_json(raw)))
-            d.setdefault("slide_id", plan.get("slide_id") or "s")
+            d["slide_id"] = plan.get("slide_id") or d.get("slide_id") or "s"  # the plan owns the id
             d.setdefault("layout_type", plan.get("layout_type") or "bullet_evidence")
             slide = _fix_structural_layout(SlideIR.model_validate(d))
             if is_canvas:  # the canvas guard is part of the boundary: invalid SVG re-asks
@@ -336,10 +383,12 @@ def _bad_ids(feedback: list[str]) -> dict[str, list[str]]:
     return out
 
 
-def _repair_slide(slide: SlideIR, findings: list[str], llm: LLM, *, max_attempts: int = 2) -> SlideIR:
+def _repair_slide(slide: SlideIR, findings: list[str], llm: LLM, *, max_attempts: int = 2, fig_menu: str = "") -> SlideIR:
+    menu_note = f"\n\n可用图清单(asset_id 必须一字不差从这里选,或把版式改为非图版式):\n{fig_menu}" if fig_menu else ""
     base = (
         f"当前这页 JSON:\n{slide.model_dump_json()}\n\n这页存在的问题:\n"
         + "\n".join(f"- {f}" for f in findings)
+        + menu_note
         + "\n\n请只修复这些问题,重新输出该页 JSON。"
     )
     prompt = base
@@ -397,10 +446,12 @@ def build_deck_detailed(
         total = len(prior_slides)
         _emit(progress, {"phase": "repair", "total": total})
         repaired: list[SlideIR] = []
+        menu = figure_menu(assets)
         for i, s in enumerate(prior_slides):
             if s.slide_id in bad:
+                fig_related = any(("figure" in f) or ("asset_id" in f) or ("图" in f) for f in bad[s.slide_id])
                 try:
-                    s = _repair_slide(s, bad[s.slide_id], llm)
+                    s = _repair_slide(s, bad[s.slide_id], llm, fig_menu=menu if fig_related else "")
                 except IRBoundaryError:  # fail open: keep the original; the finding reaches the human
                     _emit(progress, {"phase": "repair_kept_original", "slide_id": s.slide_id})
             repaired.append(s)

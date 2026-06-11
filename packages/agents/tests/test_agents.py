@@ -594,3 +594,50 @@ def test_canvas_expansion_injects_matching_exemplar():
     build_deck_detailed(assets, tables, llm, premium=True)
     canvas_call = next(c for c in llm.calls if "整页 SVG" in (c["system"] or ""))
     assert "构图范例" in canvas_call["prompt"] and "scatter_chart" in canvas_call["prompt"]
+
+
+# --- R6 regression hardening: skeleton plan validation ------------------------
+
+
+def test_skeleton_invalid_figure_ids_reasked_then_sanitized():
+    from asa_agents.deepen import build_deck_detailed
+
+    assets = [
+        EvidenceAsset(asset_id="p1", kind="section_text", content_ref="text", source="paper.pdf", locator={"page": 1}),
+        EvidenceAsset(asset_id="fig1_p2_ab", kind="figure", content_ref="f.png", source="paper.pdf", locator={"page": 2, "caption": "Fig. 1"}),
+    ]
+    bad_plan = json.dumps(
+        {"slides": [
+            {"slide_id": "s1", "layout_type": "figure_caption", "title": "图页", "focus": "看图", "evidence_pages": [1], "figure_ids": ["fig1"], "table_refs": []},
+        ]}
+    )
+    bullets_page = json.dumps(
+        {"slide_id": "s1", "layout_type": "bullet_evidence", "title": "图页", "blocks": [{"type": "bullets", "items": ["a", "b", "c", "→ d"]}], "speaker_notes": "n", "provenance": {"source": "p1"}}
+    )
+    # skeleton emits the bad plan TWICE (re-ask also fails) -> sanitizer demotes to bullet_evidence
+    llm = FakeLLM(bad_plan, bad_plan, bullets_page)
+    deck = build_deck_detailed(assets, [], llm)
+    assert "硬伤" in llm.calls[1]["prompt"]  # the re-ask named the defects
+    assert deck.slides[0].layout_type.value == "bullet_evidence"  # demoted, not an empty figure page
+    assert all(b.type != "figure" for b in deck.slides[0].blocks)
+
+
+def test_skeleton_valid_plan_no_extra_call():
+    assets, tables = _evidence()
+    llm = FakeLLM(_SKELETON, _SLIDE1, _SLIDE2)
+    build_deck_detailed(assets, tables, llm)
+    assert len(llm.calls) == 3  # no validation re-ask for a clean plan
+
+
+def test_repair_gets_figure_menu_for_figure_findings():
+    from slide_ir import BulletBlock, LayoutType, SlideIR
+
+    prior = [
+        SlideIR(slide_id="s1", layout_type=LayoutType.FIGURE_CAPTION, title="x", blocks=[BulletBlock(items=["a", "b", "c"])], speaker_notes="n"),
+    ]
+    assets = [EvidenceAsset(asset_id="figA_p1_xy", kind="figure", content_ref="f.png", source="p.pdf", locator={"page": 1, "caption": "Fig. 1"})]
+    fixed = json.dumps({"slide_id": "s1", "layout_type": "figure_caption", "title": "x", "blocks": [{"type": "figure", "asset_id": "figA_p1_xy", "caption": "图1 | c"}, {"type": "bullets", "items": ["a", "b", "c"]}], "speaker_notes": "n", "provenance": {"source": "p"}})
+    llm = FakeLLM(fixed)
+    deck = build_deck_detailed(assets, [], llm, feedback=["slide 's1': layout 'figure_caption' but no figure block"], prior_slides=prior)
+    assert "可用图清单" in llm.calls[0]["prompt"] and "figA_p1_xy" in llm.calls[0]["prompt"]
+    assert deck.slides[0].blocks[0].type == "figure"
