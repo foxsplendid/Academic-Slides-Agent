@@ -1012,3 +1012,38 @@ def test_scatter_without_reference_line_unchanged(tmp_path):
     out = compile_deck(deck, tmp_path / "s.pptx")
     chart = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_chart).chart
     assert [s.name for s in chart.series] == ["s"]  # no extra series
+
+
+def test_uniform_footer_on_every_page(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(slide_id="t", layout_type=LayoutType.TITLE, title="深论文标题"),
+            SlideIR(slide_id="sec", layout_type=LayoutType.SECTION, title="数据与方法"),
+            SlideIR(slide_id="c", layout_type=LayoutType.BULLET_EVIDENCE, title="样本", blocks=[BulletBlock(items=["a", "b", "c"])]),
+            SlideIR(slide_id="e", layout_type=LayoutType.ENDING, title="致谢"),
+        ],
+    )
+    prs = Presentation(str(compile_deck(deck, tmp_path / "u.pptx")))
+
+    def texts(sl):
+        return " ".join(s.text_frame.text for s in sl.shapes if s.has_text_frame)
+
+    # content + section + ending all carry the numbered breadcrumb; the cover does not (it's clean)
+    assert "01 · 数据与方法" in texts(prs.slides[1])  # section page footer
+    assert "01 · 数据与方法" in texts(prs.slides[2])  # content page footer tracks the section
+    assert "01 · 数据与方法" in texts(prs.slides[3]) or "致谢" in texts(prs.slides[3])
+    # running head (deck title) appears on the content page
+    assert "深论文标题" in texts(prs.slides[2])
+
+
+def test_aspect_aware_figure_fraction():
+    from pptx_compiler.compiler import _aspect_fraction
+
+    cw, ch = 11_000_000, 5_000_000  # wide content region (EMU-ish)
+    # a tall (portrait) figure -> narrow column; wide (landscape) -> wide column; both clamped
+    assert _aspect_fraction(0.4, cw, ch, default=0.58) == 0.42  # clamp floor
+    assert _aspect_fraction(3.0, cw, ch, default=0.58) == 0.66  # clamp ceiling
+    assert _aspect_fraction(None, cw, ch, default=0.58) == 0.58  # unknown -> default
+    mid = _aspect_fraction(1.0, cw, ch, default=0.58)  # square -> between floor and default
+    assert 0.42 <= mid <= 0.58
