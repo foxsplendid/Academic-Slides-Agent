@@ -220,8 +220,10 @@ def _toc_section_findings(slides) -> list[str]:
     """The agenda is a contract: every toc entry needs a matching section divider (and vice versa).
     Round-3 judges traced both the missing dividers and the mis-labeled footers to this mismatch."""
     toc_items: list[str] = []
+    toc_id = ""
     for s in slides:
         if s.layout_type is LayoutType.TOC:
+            toc_id = s.slide_id
             for b in s.blocks:
                 if b.type == "bullets":
                     toc_items = [it if isinstance(it, str) else it.text for it in b.items]
@@ -229,15 +231,23 @@ def _toc_section_findings(slides) -> list[str]:
     sections = [s.title.strip() for s in slides if s.layout_type is LayoutType.SECTION]
     if not toc_items or not sections:
         return []
+    sec_list = "、".join(sections)
     out: list[str] = []
+    # Route to the TOC slide so a targeted repair can just rewrite its bullets to the real sections,
+    # instead of a full re-roll that keeps missing the count (the toc/section retry-burn).
     if len(toc_items) != len(sections):
         out.append(
-            f"目录列出 {len(toc_items)} 个章节但正文只有 {len(sections)} 个 section 分隔页——两者必须一一对应"
+            f"slide '{toc_id}': 目录列出 {len(toc_items)} 个章节但正文只有 {len(sections)} 个章节页——"
+            f"把目录 bullets 改为与实际章节**逐字一致**(共 {len(sections)} 条:{sec_list})"
         )
     else:
         for t, sec in zip(toc_items, sections):
             if _norm_title(t) != _norm_title(sec):
-                out.append(f"目录章节「{t}」与对应分隔页「{sec}」名称不一致")
+                out.append(
+                    f"slide '{toc_id}': 目录章节「{t}」与分隔页「{sec}」名称不一致——"
+                    f"把目录 bullets 改为实际章节(共 {len(sections)} 条:{sec_list})"
+                )
+                break
     return out
 
 def _duplicate_figure_findings(slides) -> list[str]:

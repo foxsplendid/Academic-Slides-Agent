@@ -641,3 +641,36 @@ def test_repair_gets_figure_menu_for_figure_findings():
     deck = build_deck_detailed(assets, [], llm, feedback=["slide 's1': layout 'figure_caption' but no figure block"], prior_slides=prior)
     assert "可用图清单" in llm.calls[0]["prompt"] and "figA_p1_xy" in llm.calls[0]["prompt"]
     assert deck.slides[0].blocks[0].type == "figure"
+
+
+# --- targeted reject feedback ---------------------------------------------------
+
+
+def test_page_reference_in_reject_routes_to_that_slide():
+    from asa_agents.graph import _reject_findings
+    from slide_ir import LayoutType, SlideIR
+
+    slides = [
+        SlideIR(slide_id=f"s{i}", layout_type=LayoutType.BULLET_EVIDENCE, title=f"p{i}") for i in range(1, 16)
+    ]
+    out = _reject_findings("第14页图文不匹配，仅展示了图8b", slides)
+    assert len(out) == 1 and "slide 's14'" in out[0] and "图文不匹配" in out[0]
+
+
+def test_multi_page_reject_routes_to_each():
+    from asa_agents.graph import _reject_findings
+    from slide_ir import LayoutType, SlideIR
+
+    slides = [SlideIR(slide_id=f"s{i}", layout_type=LayoutType.BULLET_EVIDENCE, title=f"p{i}") for i in range(1, 16)]
+    out = _reject_findings("page 3 和第 7 页都有问题", slides)
+    ids = " ".join(out)
+    assert "slide 's3'" in ids and "slide 's7'" in ids
+
+
+def test_reject_without_page_is_deck_level():
+    from asa_agents.graph import _reject_findings
+    from slide_ir import LayoutType, SlideIR
+
+    slides = [SlideIR(slide_id="s1", layout_type=LayoutType.TITLE, title="t")]
+    out = _reject_findings("整体结构需要重新组织", slides)
+    assert len(out) == 1 and out[0].startswith("用户退回大纲") and "slide '" not in out[0]

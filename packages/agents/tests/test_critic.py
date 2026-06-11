@@ -308,7 +308,7 @@ def test_toc_section_mismatch_flagged():
         SlideIR(slide_id="c", layout_type=LayoutType.BULLET_EVIDENCE, title="x", blocks=[BulletBlock(items=["a", "b", "c", "d"])]),
     ]
     findings = critique_deck(slides, _EVIDENCE)
-    assert any("3 个章节" in f and "1 个 section" in f for f in findings)
+    assert any("3 个章节" in f and "1 个章节页" in f and "slide 't'" in f for f in findings)
     # matched agenda -> clean
     slides += [
         SlideIR(slide_id="s2", layout_type=LayoutType.SECTION, title="方法"),

@@ -9,12 +9,32 @@ resume re-runs only the approval node — the expensive LLM call never fires twi
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Optional
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
+
+_PAGE_REF = re.compile(r"(?:第\s*(\d+)\s*页|(?:page|slide|p)\s*(\d+)|\b(\d+)\s*页)", re.IGNORECASE)
+
+
+def _reject_findings(feedback: str, slides) -> list[str]:
+    """Turn a human rejection into critic-style findings. When the feedback names specific page
+    numbers ("第14页图文不匹配"), scope it to those slides' ids so the planner does a TARGETED repair
+    (keep every other page verbatim, fix only the named ones) instead of re-rolling the whole deck —
+    which is why a page-specific rejection previously "看起来没修复". With no page reference it stays
+    a deck-level finding and triggers a full replan."""
+    feedback = (feedback or "").strip()
+    if not feedback:
+        return ["用户退回大纲: 请改进整体结构与内容"]
+    pages = {int(n) for m in _PAGE_REF.finditer(feedback) for n in m.groups() if n}
+    valid = [p for p in sorted(pages) if 1 <= p <= len(slides)]
+    if valid:
+        out = [f"slide '{slides[p - 1].slide_id}': 用户指出第{p}页的问题: {feedback}" for p in valid]
+        return out
+    return [f"用户退回大纲: {feedback}"]
 
 
 def _asa_serde():
@@ -159,7 +179,7 @@ def build_graph(
         edits = decision.get("edits") if isinstance(decision, dict) else None
         if not approved:  # human rejected: feed their reason back as findings and replan
             feedback = (decision.get("feedback") or "").strip() if isinstance(decision, dict) else ""
-            findings = [f"用户退回大纲: {feedback or '请改进整体结构与内容'}"]
+            findings = _reject_findings(feedback, state.slides)
             return {"user_approved_outline": False, "critic_findings": findings, "phase": Phase.OUTLINING}
         return {"user_approved_outline": True, "user_outline_edits": edits, "phase": Phase.MAPPING}
 
