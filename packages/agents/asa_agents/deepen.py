@@ -230,7 +230,9 @@ def _expand_slide(
     max_attempts: int = 2,
     detail: str = "auto",
 ) -> SlideIR:
-    pages = plan.get("evidence_pages") or []
+    pages = list(plan.get("evidence_pages") or [])
+    if (plan.get("layout_type") or "") == "title" and 1 not in pages:
+        pages = [1] + pages  # the cover needs page 1 — authors / affiliation / venue live there
     fig_ids = [f for f in (plan.get("figure_ids") or ([plan["figure_id"]] if plan.get("figure_id") else [])) if f]
     # adaptive cap: figure/table slides keep full context; plain bullet slides are already focused.
     cap = 9000 if (fig_ids or plan.get("table_refs")) else 6000

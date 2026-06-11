@@ -24,7 +24,7 @@ _SKELETON = json.dumps(
         ]
     }
 )
-_S1 = json.dumps({"slide_id": "s1", "layout_type": "title", "title": "Demo", "blocks": [], "speaker_notes": "x", "provenance": {"source": "p"}})
+_S1 = json.dumps({"slide_id": "s1", "layout_type": "title", "title": "Demo", "subtitle": "Author et al. · 2025", "blocks": [], "speaker_notes": "x", "provenance": {"source": "p"}})
 _S2 = json.dumps(
     {"slide_id": "s2", "layout_type": "formula_banner", "title": "Energy", "blocks": [{"type": "formula", "latex": "E=mc^2"}], "speaker_notes": "x", "provenance": {"source": "p"}}
 )

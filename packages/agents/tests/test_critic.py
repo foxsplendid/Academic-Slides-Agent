@@ -32,7 +32,7 @@ _EVIDENCE = [
 
 def _clean_slides() -> list[SlideIR]:
     return [
-        SlideIR(slide_id="s1", layout_type=LayoutType.TITLE, title="A Study", blocks=[]),
+        SlideIR(slide_id="s1", layout_type=LayoutType.TITLE, title="A Study", subtitle="Lin et al. · J. Petrol. · 2025", blocks=[]),
         SlideIR(
             slide_id="s2",
             layout_type=LayoutType.BULLET_EVIDENCE,
@@ -336,3 +336,13 @@ def test_advisory_findings_do_not_burn_retries(tmp_path):
     assert "approval" in snap.next
     assert snap.values["retry_count"] == 0  # advisory surfaced but no replan burned
     assert any(f.startswith("[建议]") for f in snap.values["critic_findings"])
+
+
+def test_cover_without_subtitle_flagged():
+    slides = [
+        SlideIR(slide_id="t", layout_type=LayoutType.TITLE, title="标题", blocks=[]),
+        SlideIR(slide_id="c", layout_type=LayoutType.BULLET_EVIDENCE, title="x", blocks=[BulletBlock(items=["a", "b", "c", "→ d"])]),
+    ]
+    assert any("封面缺少副标题" in f for f in critique_deck(slides, _EVIDENCE))
+    slides[0] = SlideIR(slide_id="t", layout_type=LayoutType.TITLE, title="标题", subtitle="Lin et al. · 2025", blocks=[])
+    assert not any("封面" in f for f in critique_deck(slides, _EVIDENCE))

@@ -122,6 +122,8 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
             findings.append(f"{tag}: layout '{s.layout_type.value}' but no figure block")
         if s.layout_type == LayoutType.TOC and "bullets" not in kinds:
             findings.append(f"{tag}: layout 'toc' but no bullets block (the agenda items)")
+        if s.layout_type == LayoutType.TITLE and not (s.subtitle or "").strip():
+            findings.append(f"{tag}: 封面缺少副标题——补上「作者等 · 单位/期刊 · 年份」(取自论文首页元信息)")
         n_figs = sum(1 for b in s.blocks if b.type == "figure")
         if s.layout_type == LayoutType.FIGURE_GRID and 0 < n_figs < 2:
             findings.append(
