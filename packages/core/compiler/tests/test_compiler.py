@@ -1047,3 +1047,31 @@ def test_aspect_aware_figure_fraction():
     assert _aspect_fraction(None, cw, ch, default=0.58) == 0.58  # unknown -> default
     mid = _aspect_fraction(1.0, cw, ch, default=0.58)  # square -> between floor and default
     assert 0.42 <= mid <= 0.58
+
+
+def test_big_figure_tall_image_goes_side_by_side(tmp_path):
+    tall = _png(tmp_path / "tall.png", 500, 600)  # ar 0.83 < 1.35
+    deck = _slide_of(
+        LayoutType.BIG_FIGURE,
+        [FigureBlock(asset_id="i"), BulletBlock(items=["p1", "p2"])],
+    )
+    out = compile_deck(deck, tmp_path / "bf.pptx", asset_resolver={"i": str(tall)})
+    slide = Presentation(str(out)).slides[0]
+    pic = next(sh for sh in slide.shapes if sh.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    bullets = next(sh for sh in slide.shapes if sh.has_text_frame and "p1" in sh.text_frame.text)
+    assert bullets.left > pic.left + pic.width // 2  # text beside, not squeezed below
+
+
+def test_panoramic_figure_gets_top_band(tmp_path):
+    wide = _png(tmp_path / "wide.png", 1500, 500)  # ar 3.0 > 2.2
+    deck = _slide_of(
+        LayoutType.FIGURE_CAPTION,
+        [FigureBlock(asset_id="i"), BulletBlock(items=["p1", "p2", "p3"])],
+    )
+    out = compile_deck(deck, tmp_path / "pan.pptx", asset_resolver={"i": str(wide)})
+    slide = Presentation(str(out)).slides[0]
+    pic = next(sh for sh in slide.shapes if sh.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    bullets = next(sh for sh in slide.shapes if sh.has_text_frame and "p1" in sh.text_frame.text)
+    prs = Presentation(str(out))
+    assert bullets.top > pic.top + pic.height  # text below the full-width band
+    assert pic.width > int(prs.slide_width * 0.6)  # the band actually uses the width

@@ -138,8 +138,13 @@ def _regions_for(s: SlideIR, content: Region, gap: int, asset_resolver=None) -> 
         if n == 1:
             return [content]
         if n == 2 and len(buls) == 1:
-            fig_r, text_r = _vsplit(content, [0.74, 0.26], gap)
+            ar = _figure_aspect(getattr(s.blocks[figs[0]], "asset_id", None), asset_resolver)
             out: list[Optional[Region]] = [None, None]
+            if ar is not None and ar < 1.35:  # squarish/tall: a full-width band would letterbox it
+                frac = _aspect_fraction(ar, content[2], content[3], default=0.58)
+                fig_r, text_r = _hsplit(content, [frac, 1 - frac], gap)
+            else:
+                fig_r, text_r = _vsplit(content, [0.74, 0.26], gap)
             out[figs[0]], out[buls[0]] = fig_r, text_r
             return out  # type: ignore[return-value]
 
@@ -181,6 +186,19 @@ def _regions_for(s: SlideIR, content: Region, gap: int, asset_resolver=None) -> 
             if len(majors) == 1:
                 major_left = lt in (LayoutType.FIGURE_LEFT, LayoutType.TWO_COLUMN_TABLE)
                 _cw, _ch = core[2], core[3]
+                _ar = (
+                    _figure_aspect(getattr(s.blocks[majors[0]], "asset_id", None), asset_resolver)
+                    if types[majors[0]] == "figure"
+                    else None
+                )
+                if _ar is not None and _ar > 2.2:  # panoramic figure: full-width band on top, text below
+                    band_frac = max(0.4, min(0.62, (_cw / _ar) / max(_ch, 1)))
+                    major_r, text_r = _vsplit(core, [band_frac, 1 - band_frac], gap)
+                    out[majors[0]] = major_r
+                    for t_i, r in zip(texts, _vsplit(text_r, [1 / len(texts)] * len(texts), gap) if len(texts) > 1 else [text_r]):
+                        out[t_i] = r
+                    if all(r is not None for r in out):
+                        return out  # type: ignore[return-value]
                 frac = 0.55 if types[majors[0]] == "table" else _fig_frac(majors[0], _cw, _ch, 0.58)
                 if major_left:
                     major_r, text_r = _hsplit(core, [frac, 1 - frac], gap)

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.4.1 |
+| **Version** | 0.4.2 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -391,6 +391,7 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |
 | 2026-06-06 | 0.1.19 | **Template system v1 = style profiles**: the reference look is per-shape (not a master/theme), so a "template" is a `StyleProfile` of design tokens (fonts/sizes/colors/emphasis/diagram colors) the compiler applies. `ACADEMIC` (user-derived tokens) is default → output unchanged; `compile_deck(style=…)` / `ASA_STYLE` swap it (verified academic↔modern_teal change fonts/colors). Optional `.pptx` base template still supported for master-based themes. |
 | 2026-06-06 | 0.1.21 | **Figure panel splitting (opt-in)**: `ingestion/panels.py split_composite` — Pillow-only (numpy-free), AI-free band X-Y-cut gutter detection with conservative over-segmentation gates; under `ASA_SPLIT_FIGURES` each panel becomes a sibling `figure` asset (whole figure kept), flowing end-to-end with zero downstream changes. Verified 2×2→4 / 1×3→3; single/small don't split. |
+| 2026-06-12 | 0.4.2 | **R5 三项打磨**(判团点名,备战 R6):①长宽比自适应扩展——big_figure 方/高图(ar<1.35)自动改侧排(不再整宽带 letterbox)、全景图(ar>2.2)自动改全宽顶带+文下;②密集原图策略(提示词):图注/图例密集的原图优先 big_figure 放大或拆子图,勿塞半栏;图主导页 bullets ≤4 条且每条≤40字(图是主角,长解读进讲稿);③信息设计手法:方法对比/前人缺陷优先 table 对照表(✓/✗/数值),stat 支持「0.89 → 0.93」箭头形式。252 测试。 |
 | 2026-06-12 | 0.4.1 | **盲测 R5:偏好首次反转 3我方/1平/0对方**(R1-R4 全 0 胜)!Design 从 R4 −1.25 翻正到 **+0.38**(3.63 vs 3.25,首次反超)、Content +0.50 领先、Coherence −0.13 基本打平。翻盘根因(四评委一致):我方嵌入**真实完整渲染的论文级图件、零损坏**,对方自建图表系统性损坏(SHAP 无轴/雷达无迹线/柱状叠压/卡片溢出)——**no-coordinates 论点五轮数据彻底验证**。R5 收尾修复:封面缺作者(模型漏填)→ 封面扩写强制纳入第 1 页证据+critic 强制封面副标题非空(可修复)。250 测试。剩余打磨:个别图仍偏小、截图图注偏小、版式偏单调。 |
 | 2026-06-12 | 0.4.0 | **Theme v3 统一外壳(R4 裁决:Content 已平手 4.13,纯输机械一致性)**。盲测 R4:Design 差 1.25(最大)/Coherence 差 0.75/偏好 1平3负,四评委每轮同点:图小留白大、页脚章节错、脱模板页、封面缺作者。全确定性编译器修复:①**长宽比自适应图列**(_aspect_fraction:列宽≈长宽比×高,clamp 0.42-0.66,消除小图大留白);②**统一页脚**(每页含结构页:编号面包屑「NN · 章节」+页码,首章前回退 deck 标题)+**running head**(右上 deck 标题);③结构页(section/ending)不再脱壳、与内容页同款页脚;④封面副标题改作者·单位·年份;⑤骨架规则 section 紧贴本章内容(修页脚串号)、canvas 页加同款底部页脚。249 测试。 |
 | 2026-06-12 | 0.3.4 | **图注匹配 + 一致性散点**:①ingestion 同页多面板**图注传播**(_propagate_panel_captions:同页恰一张带「FIGURE N」完整图注+其余为「(b)」式碎片→判定为同图子面板,完整图注+panel 序号+fig_no 传播到全部,缓存 v5)——根治多面板图被拆成独立资产后模型编造子图注;扩写新规子图注「只写画面可确认内容,不确定只留图号,严禁编造」;②ChartBlock.reference_line:预测-vs-参考一致性用**单 series 散点(x=参考,y=预测)+ 自动 1:1 对角线**(虚线灰),比两条并排折线直观;chart 选型提示对应更新。247 测试。 |
