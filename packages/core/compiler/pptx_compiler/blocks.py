@@ -212,6 +212,11 @@ def render_stat(slide, block, region: Region, style: StyleProfile = ACADEMIC, ic
         card.line.color.rgb = style.card_line_rgb
         card.line.width = Pt(0.75)
         card.shadow.inherit = False
+        edge = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + int(Pt(6)), top, card_w - int(Pt(12)), int(Pt(3)))
+        edge.fill.solid()
+        edge.fill.fore_color.rgb = style.accent_rgb
+        edge.line.fill.background()
+        edge.shadow.inherit = False
         icon = _icon_png(icon_resolver, getattr(item, "icon", None), style)
         if icon is not None:
             size = int(Pt(16))

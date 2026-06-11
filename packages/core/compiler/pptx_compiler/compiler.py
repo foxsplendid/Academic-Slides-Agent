@@ -29,6 +29,8 @@ from slide_ir import (
     TableBlock,
 )
 
+from pptx.enum.shapes import MSO_SHAPE as _MSO_SHAPE
+
 from . import blocks as _blocks
 from .canvas import canvas_engine_available, inject_canvas_slides, validate_canvas_svg
 from .formula_renderer import FormulaRenderer, NullFormulaRenderer
@@ -404,6 +406,7 @@ def _render_slide(
     section: str = "",
     section_no: int = 0,
     deck_title: str = "",
+    chapter_preview: Optional[list[str]] = None,
 ) -> None:
     slide_w, slide_h = prs.slide_width, prs.slide_height
     content_left = int(_MARGIN)
@@ -432,6 +435,15 @@ def _render_slide(
         if style.accent_bar:  # centered accent rule under the big title
             rule_w = int(Inches(3.2))
             _accent_rect(slide, (int(slide_w) - rule_w) // 2, int(Inches(4.25)), rule_w, int(Inches(0.05)), style.accent_rgb)
+        if s.layout_type is LayoutType.SECTION and chapter_preview:
+            # The divider earns its page: a muted preview of what this chapter covers (derived from
+            # the deck itself — no LLM involved). Kills the "low-information structural page" critique.
+            pv = slide.shapes.add_textbox(content_left, int(Inches(4.55)), content_width, int(Inches(1.9)))
+            pv.text_frame.word_wrap = True
+            for j, t in enumerate(chapter_preview[:4]):
+                para_pv = pv.text_frame.paragraphs[0] if j == 0 else pv.text_frame.add_paragraph()
+                para_pv.alignment = PP_ALIGN.CENTER
+                _blocks.add_rich_text(para_pv, f"·  {t}", size=Pt(13), style=style, color=style.muted_rgb)
         # Uniform chrome: SECTION/ENDING carry the same footer as content pages (no de-templated
         # structural pages — the R4 coherence fix). The TITLE cover stays clean.
         if s.layout_type is not LayoutType.TITLE:
@@ -443,15 +455,24 @@ def _render_slide(
         para = box.text_frame.paragraphs[0]
         _blocks.add_rich_text(para, s.title, size=Pt(style.title_pt), bold=True, style=style, color=style.title_rgb)
         kicker_h = 0
-        if s.subtitle:  # 页眉导读句 (the slide's one-line takeaway, paper-ppt-agent style)
-            kick = slide.shapes.add_textbox(content_left, int(Inches(1.04)), content_width, int(Inches(0.3)))
-            kick.text_frame.word_wrap = True
-            _blocks.add_rich_text(
-                kick.text_frame.paragraphs[0], s.subtitle, size=Pt(12), style=style, color=style.muted_rgb
-            )
-            kicker_h = int(Inches(0.3))
-        if style.accent_bar:  # short accent rule under the title (and kicker, when present)
-            _accent_rect(slide, content_left, int(Inches(1.22)) + kicker_h, int(Inches(1.8)), int(Inches(0.045)), style.accent_rgb)
+        if s.subtitle:  # 页眉导读句: a styled takeaway band, not bare text (the GSA-style kicker bar)
+            from pptx.enum.text import MSO_ANCHOR as _ANCHOR
+
+            band_h = int(Inches(0.36))
+            band = slide.shapes.add_shape(_MSO_SHAPE.RECTANGLE, content_left, int(Inches(1.08)), content_width, band_h)
+            band.fill.solid()
+            band.fill.fore_color.rgb = style.card_fill_rgb
+            band.line.fill.background()
+            band.shadow.inherit = False
+            _accent_rect(slide, content_left, int(Inches(1.08)), int(Pt(4)), band_h, style.accent_rgb)
+            tf = band.text_frame
+            tf.word_wrap = True
+            tf.vertical_anchor = _ANCHOR.MIDDLE
+            tf.margin_left = int(Pt(12))
+            _blocks.add_rich_text(tf.paragraphs[0], s.subtitle, size=Pt(12), style=style, color=style.text_rgb)
+            kicker_h = band_h + int(Inches(0.06))
+        if style.accent_bar and not s.subtitle:  # short accent rule when there is no kicker band
+            _accent_rect(slide, content_left, int(Inches(1.22)), int(Inches(1.8)), int(Inches(0.045)), style.accent_rgb)
         _add_running_head(slide, prs, style, deck_title)  # consistent top-right running head
         _add_uniform_footer(slide, prs, style, page_no, section, section_no, deck_title)
         content_top = int(Inches(1.5)) + kicker_h
@@ -545,9 +566,15 @@ def compile_deck(
     section = ""
     section_no = 0
     for i, slide_ir in enumerate(deck.slides, start=1):
+        preview: list[str] = []
         if slide_ir.layout_type is LayoutType.SECTION:
             section = slide_ir.title  # breadcrumb for the following content slides
             section_no += 1
+            for nxt in deck.slides[i:]:  # titles of this chapter's content pages
+                if nxt.layout_type in (LayoutType.SECTION, LayoutType.ENDING):
+                    break
+                if nxt.title:
+                    preview.append(nxt.title)
         slide = prs.slides.add_slide(layout)
         _render_slide(
             prs,
@@ -561,6 +588,7 @@ def compile_deck(
             section=section,
             section_no=section_no,
             deck_title=deck_title,
+            chapter_preview=preview,
         )
 
     out = Path(out_path)

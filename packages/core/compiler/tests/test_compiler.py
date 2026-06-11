@@ -1075,3 +1075,36 @@ def test_panoramic_figure_gets_top_band(tmp_path):
     prs = Presentation(str(out))
     assert bullets.top > pic.top + pic.height  # text below the full-width band
     assert pic.width > int(prs.slide_width * 0.6)  # the band actually uses the width
+
+
+# --- info-design components wave ----------------------------------------------
+
+
+def test_kicker_renders_as_band_with_accent_edge(tmp_path):
+    deck = _slide_of(LayoutType.BULLET_EVIDENCE, [BulletBlock(items=["a", "b", "c"])])
+    deck.slides[0].subtitle = "XGBoost 以 RMSE 0.55 居首"
+    prs = Presentation(str(compile_deck(deck, tmp_path / "k.pptx")))
+    slide = prs.slides[0]
+    band = next(
+        sh for sh in slide.shapes if sh.has_text_frame and "RMSE 0.55" in sh.text_frame.text
+    )
+    from pptx_compiler.style import ACADEMIC
+
+    assert band.fill.fore_color.rgb == ACADEMIC.card_fill_rgb  # tinted strip, not bare text
+    assert band.width > Inches(10)  # full content width
+
+
+def test_section_divider_lists_chapter_preview(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(slide_id="s", layout_type=LayoutType.SECTION, title="结果与验证"),
+            SlideIR(slide_id="c1", layout_type=LayoutType.BULLET_EVIDENCE, title="模型性能对比", blocks=[BulletBlock(items=["a", "b", "c"])]),
+            SlideIR(slide_id="c2", layout_type=LayoutType.BULLET_EVIDENCE, title="独立火山验证", blocks=[BulletBlock(items=["a", "b", "c"])]),
+            SlideIR(slide_id="e", layout_type=LayoutType.ENDING, title="致谢"),
+        ],
+    )
+    prs = Presentation(str(compile_deck(deck, tmp_path / "p.pptx")))
+    texts = " ".join(sh.text_frame.text for sh in prs.slides[0].shapes if sh.has_text_frame)
+    assert "模型性能对比" in texts and "独立火山验证" in texts  # the divider previews its chapter
+    assert "致谢" not in texts  # stops at the chapter boundary
