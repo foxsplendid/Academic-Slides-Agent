@@ -278,10 +278,10 @@ def create_app(
         style_name: str = Form(default=""),
         parser: str = Form(default=""),
         detail: str = Form(default="auto"),
-        split_figures: bool = Form(default=False),
-        vlm_critic: bool = Form(default=False),
+        split_figures: bool = Form(default=True),
+        vlm_critic: bool = Form(default=True),
         premium: bool = Form(default=True),
-        native_formula: bool = Form(default=False),
+        native_formula: bool = Form(default=True),
     ):
         job_id = uuid.uuid4().hex[:12]
         job_dir = out_root / "uploads" / job_id

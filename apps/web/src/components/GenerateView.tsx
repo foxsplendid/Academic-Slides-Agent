@@ -35,7 +35,6 @@ export function GenerateView() {
   const tplInputRef = useRef<HTMLInputElement>(null);
   const [parser, setParser] = useState("auto");
   const [detail, setDetail] = useState("auto");
-  const [splitFigures, setSplitFigures] = useState(false);
 
   useEffect(() => {
     listTemplates().then(setTemplates);
@@ -51,9 +50,6 @@ export function GenerateView() {
       patchRun({ error: String(e) });
     }
   }
-  const [vlmCritic, setVlmCritic] = useState(false);
-  const [premium, setPremium] = useState(true);
-  const [nativeFormula, setNativeFormula] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const stageIdx = STAGES.findIndex((s) => s.key === run.stage);
@@ -66,7 +62,7 @@ export function GenerateView() {
   async function start() {
     patchRun({ busy: true, error: null, log: [], stage: "parse", done: 0, total: 0 });
     try {
-      const res = await uploadJob(files, { styleName, parser, detail, splitFigures, vlmCritic, nativeFormula, premium });
+      const res = await uploadJob(files, { styleName, parser, detail });
       patchRun({ jobId: res.job_id, title: res.title, ingested: res.ingested, warnings: res.warnings, stage: "outline" });
       appendLog(`已摄取 ${res.ingested.files} 个文件 · ${res.ingested.text_pages} 页正文 · ${res.ingested.tables} 表 · ${res.ingested.figures} 图`);
       listJobs().then(setHistory);
@@ -176,27 +172,9 @@ export function GenerateView() {
             </select>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {[
-            { label: "大图二次切割", desc: "复合图拆为子面板", val: splitFigures, set: setSplitFigures },
-            { label: "VLM 视觉评审", desc: "渲染后视觉缺陷检查", val: vlmCritic, set: setVlmCritic },
-            { label: "精品档", desc: "关键页自由构图(默认开;关闭则全用确定性版式)", val: premium, set: setPremium },
-            { label: "原生公式(实验)", desc: "简单公式可编辑 OMML", val: nativeFormula, set: setNativeFormula },
-          ].map((t) => (
-            <label
-              key={t.label}
-              className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-xs transition-colors ${
-                t.val ? "border-primary/50 bg-primary/5" : "border-slate-200 dark:border-slate-700"
-              }`}
-            >
-              <input type="checkbox" className="mt-0.5" checked={t.val} onChange={(e) => t.set(e.target.checked)} />
-              <span>
-                <span className="block font-semibold">{t.label}</span>
-                <span className="text-slate-400">{t.desc}</span>
-              </span>
-            </label>
-          ))}
-        </div>
+        <p className="mt-3 text-xs text-slate-400">
+          子图拆分、视觉质检、精品构图、原生公式均已默认启用,遇到问题会自动回退,无需配置。
+        </p>
         <div className="mt-4">
           <button className="btn-primary" disabled={run.busy || files.length === 0} onClick={start}>
             {run.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
