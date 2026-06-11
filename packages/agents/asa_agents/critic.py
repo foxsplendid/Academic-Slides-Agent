@@ -213,6 +213,7 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
     findings.extend(_duplicate_title_findings(slides))
     findings.extend(_monotony_findings(slides))
     findings.extend(_toc_section_findings(slides))
+    findings.extend(_duplicate_figure_findings(slides))
     return findings
 
 def _toc_section_findings(slides) -> list[str]:
@@ -237,4 +238,21 @@ def _toc_section_findings(slides) -> list[str]:
         for t, sec in zip(toc_items, sections):
             if _norm_title(t) != _norm_title(sec):
                 out.append(f"目录章节「{t}」与对应分隔页「{sec}」名称不一致")
+    return out
+
+def _duplicate_figure_findings(slides) -> list[str]:
+    """The same figure embedded on two pages (R6' p10/p13) reads as a copy-paste error and usually
+    means one of the pages has a caption that belongs to a different figure. Repair-routable."""
+    seen: dict[str, str] = {}
+    out: list[str] = []
+    for s in slides:
+        for b in s.blocks:
+            if b.type == "figure":
+                if b.asset_id in seen and seen[b.asset_id] != s.slide_id:
+                    out.append(
+                        f"slide '{s.slide_id}': 图 {b.asset_id} 已在 slide '{seen[b.asset_id]}' 使用——"
+                        f"换成本页真正要讲的图(对照图注),或删去该 figure block"
+                    )
+                else:
+                    seen.setdefault(b.asset_id, s.slide_id)
     return out

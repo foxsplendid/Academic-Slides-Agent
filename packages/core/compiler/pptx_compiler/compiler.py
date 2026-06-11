@@ -415,6 +415,8 @@ def _render_slide(
         para = box.text_frame.paragraphs[0]
         para.alignment = PP_ALIGN.CENTER
         title_pt = style.cover_title_pt if s.layout_type is LayoutType.TITLE else style.section_pt
+        if s.layout_type is LayoutType.TITLE and len(s.title) > 18:  # long titles wrap awkwardly at full size
+            title_pt = max(28, int(title_pt - (len(s.title) - 18) * 0.8))
         if s.layout_type is LayoutType.SECTION and section_no:
             num = slide.shapes.add_textbox(content_left, int(Inches(1.35)), content_width, int(Inches(0.8)))
             np_ = num.text_frame.paragraphs[0]

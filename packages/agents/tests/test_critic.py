@@ -346,3 +346,12 @@ def test_cover_without_subtitle_flagged():
     assert any("封面缺少副标题" in f for f in critique_deck(slides, _EVIDENCE))
     slides[0] = SlideIR(slide_id="t", layout_type=LayoutType.TITLE, title="标题", subtitle="Lin et al. · 2025", blocks=[])
     assert not any("封面" in f for f in critique_deck(slides, _EVIDENCE))
+
+
+def test_duplicate_figure_across_slides_flagged():
+    slides = [
+        SlideIR(slide_id="a", layout_type=LayoutType.FIGURE_CAPTION, title="x", blocks=[FigureBlock(asset_id="fig1", caption="图1")]),
+        SlideIR(slide_id="b", layout_type=LayoutType.FIGURE_CAPTION, title="y", blocks=[FigureBlock(asset_id="fig1", caption="图6")]),
+    ]
+    findings = critique_deck(slides, _EVIDENCE)
+    assert any("已在 slide 'a' 使用" in f and "slide 'b'" in f for f in findings)

@@ -76,17 +76,28 @@ def _display_width(text: str) -> float:
     return sum(1.0 if ord(c) > 0x2E80 else 0.5 for c in text)
 
 
-def _fit_font(items: list[str], width: int, height: int, *, base: float = 16.0, floor: float = 10.0) -> float:
-    """Measure, then place: shrink the font until the bullets' estimated height fits the region."""
+def _est_lines(items: list[str], w_pt: float, f: float) -> int:
+    per_line = max(w_pt / f, 1.0)  # ~em units that fit on one line at size f
+    return sum(max(1, math.ceil(_display_width("• " + it) / per_line)) for it in items)
+
+
+def _fit_font(items: list[str], width: int, height: int, *, base: float = 16.0, floor: float = 10.0, grow: float = 0.0) -> float:
+    """Measure, then place: shrink the font until the bullets' estimated height fits the region —
+    or, when ``grow`` allows and the text fills under ~55% of the region, bump it up so short lists
+    don't leave the bottom half of a page empty (the R6' whitespace complaint)."""
     w_pt = max(width / _EMU_PER_PT, 1.0)
     h_pt = max(height / _EMU_PER_PT, 1.0)
     f = base
     while f > floor:
-        per_line = max(w_pt / f, 1.0)  # ~em units that fit on one line at size f
-        lines = sum(max(1, math.ceil(_display_width("• " + it) / per_line)) for it in items)
-        if lines * f * 1.28 <= h_pt:  # 1.28 ≈ line spacing
+        if _est_lines(items, w_pt, f) * f * 1.28 <= h_pt:
             break
         f -= 1.0
+    while grow > 0 and f < base + grow:
+        nxt = f + 1.0
+        if _est_lines(items, w_pt, nxt) * nxt * 1.28 <= h_pt * 0.55:
+            f = nxt
+        else:
+            break
     return max(f, floor)
 
 
@@ -122,7 +133,7 @@ def render_bullets(slide, block: BulletBlock, region: Region, style: StyleProfil
     flat = _flat_bullets(block.items)
     # 8% bottom safety margin: the estimator can undershoot on mixed CJK/Latin runs, and an
     # overflowing textbox spills into the region below it (seen as text clipped by a callout).
-    size_pt = _fit_font([t for t, _ in flat], width, int(height * 0.92), base=style.body_pt)
+    size_pt = _fit_font([t for t, _ in flat], width, int(height * 0.92), base=style.body_pt, grow=6.0)
     for i, (text, level) in enumerate(flat):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         sub = level > 0

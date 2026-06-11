@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.4.3 |
+| **Version** | 0.4.4 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -391,6 +391,7 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |
 | 2026-06-06 | 0.1.19 | **Template system v1 = style profiles**: the reference look is per-shape (not a master/theme), so a "template" is a `StyleProfile` of design tokens (fonts/sizes/colors/emphasis/diagram colors) the compiler applies. `ACADEMIC` (user-derived tokens) is default → output unchanged; `compile_deck(style=…)` / `ASA_STYLE` swap it (verified academic↔modern_teal change fonts/colors). Optional `.pptx` base template still supported for master-based themes. |
 | 2026-06-06 | 0.1.21 | **Figure panel splitting (opt-in)**: `ingestion/panels.py split_composite` — Pillow-only (numpy-free), AI-free band X-Y-cut gutter detection with conservative over-segmentation gates; under `ASA_SPLIT_FIGURES` each panel becomes a sibling `figure` asset (whole figure kept), flowing end-to-end with zero downstream changes. Verified 2×2→4 / 1×3→3; single/small don't split. |
+| 2026-06-12 | 0.4.4 | **R6' 复验:回归修复完全生效(零缺图指控,13 图块全部正常)但未达收官判据**(偏好 1胜3负、Design −0.38;R5↔R6' 振荡表明当前处于胜负相当区间,run 间方差成为主导因素)。新发现修复:①critic **重复用图检查**(同图嵌两页=图文错配信号,R6' p10/p13,repair-routable);②bullets **grow-to-fit**(文本填充 <55% 区域时字号上浮至 +6pt,治下半页留白);③封面长标题自动缩字号(>18 字渐缩,防生硬断行)。256 测试。剩余 Design 失分主项=信息设计组件表现力(对方 GSA 模板系统),留待下波。 |
 | 2026-06-12 | 0.4.3 | **R6 回归修复(判团裁定:R6 0/4 是渲染回归非设计问题——骨架一次劣化滚动没填 figure_ids+编造短 id,修复阶段拿不到图清单只能盲修,2 轮耗尽后 fail-open 空图 deck 流入盲测)**。三层加固:①**骨架计划验证**(_plan_errors/_sanitize_plans:编造 id 或图版式无有效图 → 一次带错重问 → 仍坏则确定性剥离+降级 bullet_evidence——「承诺了图却空页」失败类从此不可能);②**修复带图清单**(图相关 findings 时 _repair_slide 注入 figure_menu,修复从盲修变能修);③扩写不再信任回显 slide_id(plan 持有,修复 '<沿用>' 占位符串号)。255 测试。复验轮(同协议)进行中。 |
 | 2026-06-12 | 0.4.2 | **R5 三项打磨**(判团点名,备战 R6):①长宽比自适应扩展——big_figure 方/高图(ar<1.35)自动改侧排(不再整宽带 letterbox)、全景图(ar>2.2)自动改全宽顶带+文下;②密集原图策略(提示词):图注/图例密集的原图优先 big_figure 放大或拆子图,勿塞半栏;图主导页 bullets ≤4 条且每条≤40字(图是主角,长解读进讲稿);③信息设计手法:方法对比/前人缺陷优先 table 对照表(✓/✗/数值),stat 支持「0.89 → 0.93」箭头形式。252 测试。 |
 | 2026-06-12 | 0.4.1 | **盲测 R5:偏好首次反转 3我方/1平/0对方**(R1-R4 全 0 胜)!Design 从 R4 −1.25 翻正到 **+0.38**(3.63 vs 3.25,首次反超)、Content +0.50 领先、Coherence −0.13 基本打平。翻盘根因(四评委一致):我方嵌入**真实完整渲染的论文级图件、零损坏**,对方自建图表系统性损坏(SHAP 无轴/雷达无迹线/柱状叠压/卡片溢出)——**no-coordinates 论点五轮数据彻底验证**。R5 收尾修复:封面缺作者(模型漏填)→ 封面扩写强制纳入第 1 页证据+critic 强制封面副标题非空(可修复)。250 测试。剩余打磨:个别图仍偏小、截图图注偏小、版式偏单调。 |
