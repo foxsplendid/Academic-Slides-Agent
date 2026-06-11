@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCcw, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCcw, RotateCcw, ShieldCheck } from "lucide-react";
 import { approveJob, buildPreview, listJobs, previewUrl, streamJob } from "../api";
 import { useStore } from "../store";
+import { Lightbox } from "./Lightbox";
 
 export function ApprovalView() {
   const { run, patchRun, appendLog, setView, setHistory } = useStore();
@@ -201,19 +202,14 @@ export function ApprovalView() {
 
       {/* lightbox */}
       {lightbox !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-8"
-          onClick={() => setLightbox(null)}
-        >
-          <button className="absolute right-4 top-4 text-white/80 hover:text-white">
-            <X className="h-6 w-6" />
-          </button>
-          <img
-            src={previewUrl(run.jobId, lightbox, bust)}
-            alt={`slide ${lightbox}`}
-            className="max-h-full max-w-full rounded-lg shadow-2xl"
-          />
-        </div>
+        <Lightbox
+          jobId={run.jobId}
+          index={lightbox}
+          count={count}
+          bust={bust}
+          onNavigate={setLightbox}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

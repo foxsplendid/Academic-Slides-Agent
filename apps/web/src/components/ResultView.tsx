@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Download, FilePlus2, Loader2, RefreshCcw, X } from "lucide-react";
+import { CheckCircle2, Download, FilePlus2, Loader2, RefreshCcw } from "lucide-react";
 import { buildPreview, downloadUrl, previewUrl } from "../api";
+import { Lightbox } from "./Lightbox";
 import { useStore } from "../store";
 
 export function ResultView() {
@@ -88,19 +89,14 @@ export function ResultView() {
       )}
 
       {lightbox !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-8"
-          onClick={() => setLightbox(null)}
-        >
-          <button className="absolute right-4 top-4 text-white/80 hover:text-white">
-            <X className="h-6 w-6" />
-          </button>
-          <img
-            src={previewUrl(run.jobId, lightbox, bust)}
-            alt={`slide ${lightbox}`}
-            className="max-h-full max-w-full rounded-lg shadow-2xl"
-          />
-        </div>
+        <Lightbox
+          jobId={run.jobId}
+          index={lightbox}
+          count={count}
+          bust={bust}
+          onNavigate={setLightbox}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

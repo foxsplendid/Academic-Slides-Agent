@@ -113,9 +113,15 @@ def figure_menu(assets: list[EvidenceAsset], *, cap_chars: int = 200) -> str:
         loc = a.locator if isinstance(a.locator, dict) else {}
         cap = loc.get("caption", "")
         note = cap[:cap_chars] if cap else "(无图注,可能是装饰图/子图,慎用)"
+        px = loc.get("px") or [0, 0]
+        size_tag = f" [{px[0]}x{px[1]}px]" if px and px[0] else ""
         if loc.get("panel") is not None:  # split sub-panel: the caption belongs to the WHOLE figure
-            note = f"[原图的第 {int(loc['panel']) + 1} 个子图;整图图注:{note}](描述时只讲此子图画面,勿提其它子图字母)"
-        lines.append(f"- {a.asset_id} —— {note}")
+            small = " **小图,勿单独成页**" if px and px[0] and min(px[0], px[1]) < 400 else ""
+            note = (
+                f"[{loc.get('parent', '原图')} 的子图{int(loc['panel']) + 1};整图图注:{note}]"
+                f"{small}(子图用法:与同图其它子图一起 figure_grid 横排,或仅当它是大幅机制/流程图时才单独成页)"
+            )
+        lines.append(f"- {a.asset_id}{size_tag} —— {note}")
     return "\n".join(lines)
 
 

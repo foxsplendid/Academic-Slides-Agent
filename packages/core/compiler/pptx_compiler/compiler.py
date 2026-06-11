@@ -322,6 +322,7 @@ def _render_slide(
     page_no: int = 0,
     icon_resolver=None,
     section: str = "",
+    section_no: int = 0,
 ) -> None:
     slide_w, slide_h = prs.slide_width, prs.slide_height
     content_left = int(_MARGIN)
@@ -333,6 +334,11 @@ def _render_slide(
         para = box.text_frame.paragraphs[0]
         para.alignment = PP_ALIGN.CENTER
         title_pt = style.cover_title_pt if s.layout_type is LayoutType.TITLE else style.section_pt
+        if s.layout_type is LayoutType.SECTION and section_no:
+            num = slide.shapes.add_textbox(content_left, int(Inches(1.35)), content_width, int(Inches(0.8)))
+            np_ = num.text_frame.paragraphs[0]
+            np_.alignment = PP_ALIGN.CENTER
+            _blocks.add_rich_text(np_, f"{section_no:02d}", size=Pt(40), bold=True, style=style, color=style.accent_rgb)
         _blocks.add_rich_text(para, s.title, size=Pt(title_pt), bold=True, style=style, color=style.title_rgb)
         if s.subtitle:  # cover 副标题 / section 导语 / ending 联系语 — fills the bare-divider critique
             sub = slide.shapes.add_textbox(content_left, int(Inches(3.55)), content_width, int(Inches(0.6)))
@@ -363,8 +369,9 @@ def _render_slide(
             _accent_rect(slide, content_left, int(Inches(1.22)) + kicker_h, int(Inches(1.8)), int(Inches(0.045)), style.accent_rgb)
         if style.page_numbers and page_no:
             _add_page_number(slide, prs, style, page_no)
-        if section:  # 页脚章节导航 (breadcrumb of the current section)
-            _add_footer_breadcrumb(slide, prs, style, section)
+        if section:  # 页脚章节导航 (breadcrumb of the current section, numbered like the agenda)
+            crumb = f"{section_no:02d} · {section}" if section_no else section
+            _add_footer_breadcrumb(slide, prs, style, crumb)
         content_top = int(Inches(1.5)) + kicker_h
 
     if not s.blocks:
@@ -452,12 +459,23 @@ def compile_deck(
     layout = _blank_layout(prs)
 
     section = ""
+    section_no = 0
     for i, slide_ir in enumerate(deck.slides, start=1):
         if slide_ir.layout_type is LayoutType.SECTION:
             section = slide_ir.title  # breadcrumb for the following content slides
+            section_no += 1
         slide = prs.slides.add_slide(layout)
         _render_slide(
-            prs, slide, slide_ir, renderer, asset_resolver, profile, page_no=i, icon_resolver=icon_resolver, section=section
+            prs,
+            slide,
+            slide_ir,
+            renderer,
+            asset_resolver,
+            profile,
+            page_no=i,
+            icon_resolver=icon_resolver,
+            section=section,
+            section_no=section_no,
         )
 
     out = Path(out_path)

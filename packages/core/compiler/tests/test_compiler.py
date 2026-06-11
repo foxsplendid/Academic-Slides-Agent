@@ -966,3 +966,20 @@ def test_compositor_two_visuals_grid_with_text_below(tmp_path):
     bullets = next(sh for sh in slide.shapes if sh.has_text_frame and "p1" in sh.text_frame.text)
     assert {pic.left == chart.left} == {False}  # the two visuals sit side by side
     assert bullets.top > pic.top and bullets.top > chart.top  # points below the visual row
+
+
+def test_section_numeral_and_numbered_breadcrumb(tmp_path):
+    deck = Deck(
+        deck_id="d",
+        slides=[
+            SlideIR(slide_id="s1", layout_type=LayoutType.SECTION, title="数据与方法"),
+            SlideIR(slide_id="c1", layout_type=LayoutType.BULLET_EVIDENCE, title="x", blocks=[BulletBlock(items=["a", "b", "c"])]),
+            SlideIR(slide_id="s2", layout_type=LayoutType.SECTION, title="结果"),
+            SlideIR(slide_id="c2", layout_type=LayoutType.BULLET_EVIDENCE, title="y", blocks=[BulletBlock(items=["a", "b", "c"])]),
+        ],
+    )
+    prs = Presentation(str(compile_deck(deck, tmp_path / "n.pptx")))
+    sec1 = " ".join(sh.text_frame.text for sh in prs.slides[0].shapes if sh.has_text_frame)
+    assert "01" in sec1  # chapter numeral on the divider
+    crumb2 = " ".join(sh.text_frame.text for sh in prs.slides[3].shapes if sh.has_text_frame)
+    assert "02 · 结果" in crumb2  # numbered breadcrumb tracks the second chapter

@@ -172,26 +172,44 @@ def parse_mineru_content_list(
 
             _h2 = _hl.sha1(stem.encode("utf-8", "ignore")).hexdigest()[:2]
             parent_id = f"fig{fig_i}_p{page}_{_h2}"
+            try:
+                from PIL import Image as _Img
+
+                _pw, _ph = _Img.open(dst).size
+            except Exception:
+                _pw = _ph = 0
             result.assets.append(
                 EvidenceAsset(
                     asset_id=parent_id,
                     kind="figure",
                     content_ref=str(dst),
                     source=source,
-                    locator={"page": page + 1, "caption": caption[:600]},
+                    locator={"page": page + 1, "caption": caption[:600], "px": [_pw, _ph]},
                 )
             )
             if os.environ.get("ASA_SPLIT_FIGURES", "").lower() in ("1", "true", "yes"):
                 from .panels import split_composite  # lazy: only when opt-in
 
                 for j, panel in enumerate(split_composite(dst, workspace, f"{stem}_fig{fig_i}")):
+                    try:
+                        from PIL import Image as _Img
+
+                        _qw, _qh = _Img.open(panel).size
+                    except Exception:
+                        _qw = _qh = 0
                     result.assets.append(
                         EvidenceAsset(
                             asset_id=f"{parent_id}{chr(97 + (j % 26))}",  # fig3_p4_ab -> panels a/b/c
                             kind="figure",
                             content_ref=str(panel),
                             source=source,
-                            locator={"page": page + 1, "caption": caption[:600], "panel": j, "parent": parent_id},
+                            locator={
+                                "page": page + 1,
+                                "caption": caption[:600],
+                                "panel": j,
+                                "parent": parent_id,
+                                "px": [_qw, _qh],
+                            },
                         )
                     )
 
