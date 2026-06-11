@@ -106,22 +106,40 @@ def _figure_ids(assets: list[EvidenceAsset]) -> list[str]:
 def figure_menu(assets: list[EvidenceAsset], *, cap_chars: int = 200) -> str:
     """One line per figure: ``asset_id —— caption…``, so the planner picks figures SEMANTICALLY
     (a bare id list once led it to illustrate a slide with an uncaptioned decorative image)."""
-    lines = []
+    # Group panels of one composite so the planner sees a single set, not N rival "whole figures".
+    groups: dict[str, list] = {}
+    singles: list = []
     for a in assets:
         if a.kind != "figure":
             continue
         loc = a.locator if isinstance(a.locator, dict) else {}
+        gid = loc.get("panel_group") or loc.get("parent")
+        if loc.get("panel") is not None and gid:
+            groups.setdefault(gid, []).append(a)
+        else:
+            singles.append(a)
+    lines = []
+    for a in singles:
+        loc = a.locator if isinstance(a.locator, dict) else {}
         cap = loc.get("caption", "")
-        note = cap[:cap_chars] if cap else "(无图注,可能是装饰图/子图,慎用)"
         px = loc.get("px") or [0, 0]
         size_tag = f" [{px[0]}x{px[1]}px]" if px and px[0] else ""
-        if loc.get("panel") is not None:  # split sub-panel: the caption belongs to the WHOLE figure
-            small = " **小图,勿单独成页**" if px and px[0] and min(px[0], px[1]) < 400 else ""
-            note = (
-                f"[{loc.get('parent', '原图')} 的子图{int(loc['panel']) + 1};整图图注:{note}]"
-                f"{small}(子图用法:与同图其它子图一起 figure_grid 横排,或仅当它是大幅机制/流程图时才单独成页)"
-            )
+        if loc.get("ambiguous_panel"):
+            note = f"[疑似多图被拆分的子图之一,无法确定归属,**慎用,勿当整图**] 图注线索:{cap[:cap_chars]}"
+        else:
+            note = cap[:cap_chars] if cap else "(无图注,可能是装饰图/子图,慎用)"
         lines.append(f"- {a.asset_id}{size_tag} —— {note}")
+    for gid, panels in groups.items():
+        panels = sorted(panels, key=lambda x: x.locator.get("panel", 0))
+        fno = panels[0].locator.get("fig_no")
+        cap = next((p.locator.get("caption", "") for p in panels if p.locator.get("caption")), "")
+        head = f"图{fno}" if fno else "一张多面板图"
+        ids = ", ".join(p.asset_id for p in panels)
+        lines.append(
+            f"- **{head}(整图被拆成 {len(panels)} 张子图:{ids})** —— 整图图注:{cap[:cap_chars]}\n"
+            f"    用法:要展示整图,用 figure_grid 一次放入这些子图的全部或大部;"
+            f"单独用其中一张子图时,caption **只描述该子图本身**,绝不能照搬整图里 (a)(b)(c) 等其它子图的描述。"
+        )
     return "\n".join(lines)
 
 

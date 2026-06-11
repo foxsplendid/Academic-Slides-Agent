@@ -197,6 +197,8 @@ def parse_mineru_content_list(
                         _qw, _qh = _Img.open(panel).size
                     except Exception:
                         _qw = _qh = 0
+                    if _qw and (min(_qw, _qh) < 100 or _qw * _qh < 40_000):
+                        continue  # micro-fragment from over-splitting (e.g. 48x30) — junk, skip
                     result.assets.append(
                         EvidenceAsset(
                             asset_id=f"{parent_id}{chr(97 + (j % 26))}",  # fig3_p4_ab -> panels a/b/c
@@ -233,11 +235,16 @@ _PANEL_ONLY = re.compile(r"^\(?\s*[a-z]\s*\)?\b.{0,12}$", re.IGNORECASE)  # "(b)
 
 
 def _propagate_panel_captions(assets: list) -> None:
-    """When MinerU extracts a multi-panel figure as separate same-page images, only one fragment
-    carries the full "FIGURE N | ..." caption and the siblings get stubs like "(b)". Without this,
-    the planner fabricates per-panel captions. Here: if a page has exactly ONE figure with a real
-    "FIGURE N" caption and the rest are fragments, propagate that caption + a panel index to all of
-    them so the menu shows the truth and the model labels them 图N-a/图N-b honestly."""
+    """MinerU routinely splits a multi-panel composite into several same-page images; the full
+    "FIGURE N | ..." caption attaches to only ONE of them, and that captioned image is itself just a
+    panel — not the whole figure. The planner then picks the captioned panel believing it is the
+    whole figure and writes a caption describing panels it isn't showing (the "把子图当成全图" bug).
+
+    Here: group same-page top-level figures. When exactly ONE figure number appears among their
+    captions (one panel captioned, the siblings empty/fragmentary), mark ALL of them — including the
+    captioned one — as panels of that figure, propagate the caption, and record the group id + total
+    count so the menu can tell the planner the truth. Pages with two distinct figure numbers are left
+    alone (genuinely different figures) but flagged ambiguous when they are many same-size siblings."""
     by_page: dict[int, list] = {}
     for a in assets:
         if a.kind == "figure" and isinstance(a.locator, dict) and a.locator.get("panel") is None:
@@ -245,17 +252,28 @@ def _propagate_panel_captions(assets: list) -> None:
     for page, figs in by_page.items():
         if len(figs) < 2:
             continue
-        leads = [f for f in figs if _FIG_NUM.search(f.locator.get("caption", "") or "")]
-        frags = [f for f in figs if _PANEL_ONLY.match((f.locator.get("caption", "") or "").strip())]
-        # exactly one full caption + the others fragmentary -> they are panels of the same figure
-        if len(leads) == 1 and len(frags) >= 1 and len(leads) + len(frags) == len(figs):
-            full = leads[0].locator.get("caption", "")
-            m = _FIG_NUM.search(full)
-            fig_no = int(m.group(1)) if m else 0
-            for idx, f in enumerate(figs):  # keep extraction order as panel order
-                f.locator["caption"] = full
+        nums = set()
+        full_caption = ""
+        for f in figs:
+            m = _FIG_NUM.search(f.locator.get("caption", "") or "")
+            if m:
+                nums.add(int(m.group(1)))
+                if len(f.locator.get("caption", "")) > len(full_caption):
+                    full_caption = f.locator.get("caption", "")
+        if len(nums) == 1:
+            # one composite split across the page: every same-page top-level image is a panel of it
+            fig_no = next(iter(nums))
+            group = figs[0].asset_id
+            for idx, f in enumerate(figs):
+                f.locator["caption"] = full_caption
                 f.locator["panel"] = idx
                 f.locator["fig_no"] = fig_no
+                f.locator["panel_total"] = len(figs)
+                f.locator["panel_group"] = group
+        elif len(nums) >= 2 and len(figs) >= 4:
+            # several figures split together; can't attribute panels safely — warn, don't single-use
+            for f in figs:
+                f.locator["ambiguous_panel"] = True
 
 
 # --------------------------------------------------------------------------- #

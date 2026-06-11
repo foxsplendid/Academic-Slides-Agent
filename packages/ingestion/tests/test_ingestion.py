@@ -430,3 +430,34 @@ def test_panel_caption_propagation():
     assert [assets[i].locator["panel"] for i in range(3)] == [0, 1, 2]
     assert all(assets[i].locator["fig_no"] == 1 for i in range(3))
     assert "panel" not in assets[3].locator  # lone figure not touched
+
+
+def test_empty_caption_siblings_grouped_as_panels():
+    """Same-page figures where only one carries a 'FIGURE N' caption and the rest are empty are all
+    panels of that figure — the captioned one is NOT the whole figure (the 把子图当成全图 bug)."""
+    from ingestion.mineru import _propagate_panel_captions
+    from slide_ir import EvidenceAsset
+
+    def mk(aid, cap):
+        return EvidenceAsset(asset_id=aid, kind="figure", content_ref=f"{aid}.png", source="p.pdf",
+                             locator={"page": 8, "caption": cap, "px": [373, 293]})
+
+    figs = [mk("f7", ""), mk("f8", ""), mk("f9", ""), mk("f12", "FIGURE 3 | Compositional variation")]
+    _propagate_panel_captions(figs)
+    assert all(f.locator.get("fig_no") == 3 for f in figs)  # all attributed to figure 3
+    assert all(f.locator.get("panel_total") == 4 for f in figs)
+    assert [f.locator["panel"] for f in figs] == [0, 1, 2, 3]  # captioned one is just panel 3
+
+
+def test_two_figure_numbers_flagged_ambiguous():
+    from ingestion.mineru import _propagate_panel_captions
+    from slide_ir import EvidenceAsset
+
+    def mk(aid, cap):
+        return EvidenceAsset(asset_id=aid, kind="figure", content_ref=f"{aid}.png", source="p.pdf",
+                             locator={"page": 9, "caption": cap, "px": [300, 300]})
+
+    figs = [mk("a", "FIGURE 11 | x"), mk("b", ""), mk("c", ""), mk("d", "FIGURE 12 | y")]
+    _propagate_panel_captions(figs)
+    assert all(f.locator.get("ambiguous_panel") for f in figs)  # two figures -> don't single-use
+    assert all(f.locator.get("panel") is None for f in figs)

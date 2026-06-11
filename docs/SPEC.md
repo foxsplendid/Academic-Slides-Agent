@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.5.1 |
+| **Version** | 0.5.2 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -391,6 +391,7 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |
 | 2026-06-06 | 0.1.19 | **Template system v1 = style profiles**: the reference look is per-shape (not a master/theme), so a "template" is a `StyleProfile` of design tokens (fonts/sizes/colors/emphasis/diagram colors) the compiler applies. `ACADEMIC` (user-derived tokens) is default → output unchanged; `compile_deck(style=…)` / `ASA_STYLE` swap it (verified academic↔modern_teal change fonts/colors). Optional `.pptx` base template still supported for master-based themes. |
 | 2026-06-06 | 0.1.21 | **Figure panel splitting (opt-in)**: `ingestion/panels.py split_composite` — Pillow-only (numpy-free), AI-free band X-Y-cut gutter detection with conservative over-segmentation gates; under `ASA_SPLIT_FIGURES` each panel becomes a sibling `figure` asset (whole figure kept), flowing end-to-end with zero downstream changes. Verified 2×2→4 / 1×3→3; single/small don't split. |
+| 2026-06-12 | 0.5.2 | **修「子图当整图」根因**(用户实测:图2/7/11 等显示子图却写整图注)。根因:MinerU 把合成图拆成同页多张子图,完整「FIGURE N」图注只挂其中一张,模型把那张当整图用、caption 描述了没显示的 (a)(b)。修复:①_propagate_panel_captions 重写为**同页同图号分组**——同页恰一个图号→全部同页顶层图(含带图注那张)标记为该图面板+组 id+总数(认得出图注为空的兄弟子图,旧规则只认「(b)」碎片);两个图号且≥4 张→标 ambiguous_panel 慎用;②split_composite 微碎片(<100px 边/<40k 面积)创建时过滤;③figure_menu **分组展示**:「图N(整图被拆成 K 张子图: ids)——用 figure_grid 放全部」;④骨架/扩写新规:标注「整图被拆成 N 张」的绝不能挑一张当整图,caption 只描述当前真实画面。缓存 v6。260 测试。 |
 | 2026-06-12 | 0.5.1 | **增强项收进默认**(用户需求):大图二次切割/VLM 视觉评审/精品档/原生公式四项从前端配置面板移除,后端 Form 默认全开——各自自动回退已验证(拆图 fail-open;VLM 未配模型或异常自动跳过;canvas 守卫重试+降级 bullet;OMML 带 LaTeX AlternateContent 降级)。前端配置面板仅剩风格/解析器/详细程度+导入模板。 |
 | 2026-06-12 | 0.5.0 | **信息设计组件波次**(对标对方 GSA 模板系统的最后失分项,全确定性):①**kicker 样式化横条**——内容页导读句从素文字升级为全宽色带(card_fill 底+4pt 强调左边+居中加深文字);②**分隔页本章预览**——section 页自动列出本章内容页标题(≤4 条,muted,从 deck 自身推导、零 IR/提示词改动),「低信息量结构页」批评失效;③**stat 统计芯片**——卡片顶部 3pt 强调色边。配 R6' 收尾:重复用图 critic、grow-to-fit、封面缩号。258 测试,R6' deck 重编译视觉验证通过。 |
 | 2026-06-12 | 0.4.4 | **R6' 复验:回归修复完全生效(零缺图指控,13 图块全部正常)但未达收官判据**(偏好 1胜3负、Design −0.38;R5↔R6' 振荡表明当前处于胜负相当区间,run 间方差成为主导因素)。新发现修复:①critic **重复用图检查**(同图嵌两页=图文错配信号,R6' p10/p13,repair-routable);②bullets **grow-to-fit**(文本填充 <55% 区域时字号上浮至 +6pt,治下半页留白);③封面长标题自动缩字号(>18 字渐缩,防生硬断行)。256 测试。剩余 Design 失分主项=信息设计组件表现力(对方 GSA 模板系统),留待下波。 |
