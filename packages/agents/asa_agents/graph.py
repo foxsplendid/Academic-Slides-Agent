@@ -148,7 +148,8 @@ def build_graph(
 
     def after_critic(state: GenerationState) -> str:
         # Retry only while there are findings AND budget remains; otherwise hand the human a deck.
-        if state.critic_findings and state.retry_count < state.max_retries:
+        actionable = [f for f in state.critic_findings if not f.startswith("[建议]")]
+        if actionable and state.retry_count < state.max_retries:
             return "plan"
         return "approval"
 

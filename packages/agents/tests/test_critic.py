@@ -299,3 +299,40 @@ def test_overloaded_slide_flagged():
     assert "slide 'busy'" in joined and "blocks on one slide" in joined
     assert "slide 'heavy2'" in joined and "heavy visual blocks" in joined
     assert "slide 'grid'" not in joined
+
+
+def test_toc_section_mismatch_flagged():
+    slides = [
+        SlideIR(slide_id="t", layout_type=LayoutType.TOC, title="目录", blocks=[BulletBlock(items=["背景", "方法", "结果"])]),
+        SlideIR(slide_id="s1", layout_type=LayoutType.SECTION, title="背景"),
+        SlideIR(slide_id="c", layout_type=LayoutType.BULLET_EVIDENCE, title="x", blocks=[BulletBlock(items=["a", "b", "c", "d"])]),
+    ]
+    findings = critique_deck(slides, _EVIDENCE)
+    assert any("3 个章节" in f and "1 个 section" in f for f in findings)
+    # matched agenda -> clean
+    slides += [
+        SlideIR(slide_id="s2", layout_type=LayoutType.SECTION, title="方法"),
+        SlideIR(slide_id="s3", layout_type=LayoutType.SECTION, title="结果"),
+    ]
+    assert not any("章节" in f for f in critique_deck(slides, _EVIDENCE))
+
+
+def test_advisory_findings_do_not_burn_retries(tmp_path):
+    # a deck whose ONLY finding is the [建议] monotony advisory must reach approval without replans
+    slides = [
+        {
+            "slide_id": f"m{i}",
+            "layout_type": "bullet_evidence",
+            "title": f"页{i}",
+            "blocks": [{"type": "bullets", "items": ["一", "二", "三", "→ 四"]}],
+        }
+        for i in range(5)
+    ]
+    deck = json.dumps({"deck_id": "j1", "slides": slides})
+    graph = build_graph(FakeLLM(deck), out_dir=tmp_path)
+    cfg = {"configurable": {"thread_id": "adv1"}}
+    graph.invoke(_init(), cfg)
+    snap = graph.get_state(cfg)
+    assert "approval" in snap.next
+    assert snap.values["retry_count"] == 0  # advisory surfaced but no replan burned
+    assert any(f.startswith("[建议]") for f in snap.values["critic_findings"])

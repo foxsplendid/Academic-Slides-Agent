@@ -64,7 +64,7 @@ def _monotony_findings(slides: list[SlideIR]) -> list[str]:
         if len(run) > MAX_LAYOUT_RUN:
             mid = run[len(run) // 2]
             out.append(  # advisory: reaches the human, does not consume the repair budget
-                f"layout monotony around {mid.slide_id}: {len(run)} consecutive slides share "
+                f"[建议] layout monotony around {mid.slide_id}: {len(run)} consecutive slides share "
                 f"'{mid.layout_type.value}' — consider varying the composition"
             )
 
@@ -210,4 +210,29 @@ def critique_deck(slides: list[SlideIR], evidence: list[EvidenceAsset]) -> list[
 
     findings.extend(_duplicate_title_findings(slides))
     findings.extend(_monotony_findings(slides))
+    findings.extend(_toc_section_findings(slides))
     return findings
+
+def _toc_section_findings(slides) -> list[str]:
+    """The agenda is a contract: every toc entry needs a matching section divider (and vice versa).
+    Round-3 judges traced both the missing dividers and the mis-labeled footers to this mismatch."""
+    toc_items: list[str] = []
+    for s in slides:
+        if s.layout_type is LayoutType.TOC:
+            for b in s.blocks:
+                if b.type == "bullets":
+                    toc_items = [it if isinstance(it, str) else it.text for it in b.items]
+            break
+    sections = [s.title.strip() for s in slides if s.layout_type is LayoutType.SECTION]
+    if not toc_items or not sections:
+        return []
+    out: list[str] = []
+    if len(toc_items) != len(sections):
+        out.append(
+            f"目录列出 {len(toc_items)} 个章节但正文只有 {len(sections)} 个 section 分隔页——两者必须一一对应"
+        )
+    else:
+        for t, sec in zip(toc_items, sections):
+            if _norm_title(t) != _norm_title(sec):
+                out.append(f"目录章节「{t}」与对应分隔页「{sec}」名称不一致")
+    return out
