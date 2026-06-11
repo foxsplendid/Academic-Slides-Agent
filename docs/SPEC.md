@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.3.3 |
+| **Version** | 0.3.4 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -391,6 +391,7 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |
 | 2026-06-06 | 0.1.19 | **Template system v1 = style profiles**: the reference look is per-shape (not a master/theme), so a "template" is a `StyleProfile` of design tokens (fonts/sizes/colors/emphasis/diagram colors) the compiler applies. `ACADEMIC` (user-derived tokens) is default → output unchanged; `compile_deck(style=…)` / `ASA_STYLE` swap it (verified academic↔modern_teal change fonts/colors). Optional `.pptx` base template still supported for master-based themes. |
 | 2026-06-06 | 0.1.21 | **Figure panel splitting (opt-in)**: `ingestion/panels.py split_composite` — Pillow-only (numpy-free), AI-free band X-Y-cut gutter detection with conservative over-segmentation gates; under `ASA_SPLIT_FIGURES` each panel becomes a sibling `figure` asset (whole figure kept), flowing end-to-end with zero downstream changes. Verified 2×2→4 / 1×3→3; single/small don't split. |
+| 2026-06-12 | 0.3.4 | **图注匹配 + 一致性散点**:①ingestion 同页多面板**图注传播**(_propagate_panel_captions:同页恰一张带「FIGURE N」完整图注+其余为「(b)」式碎片→判定为同图子面板,完整图注+panel 序号+fig_no 传播到全部,缓存 v5)——根治多面板图被拆成独立资产后模型编造子图注;扩写新规子图注「只写画面可确认内容,不确定只留图号,严禁编造」;②ChartBlock.reference_line:预测-vs-参考一致性用**单 series 散点(x=参考,y=预测)+ 自动 1:1 对角线**(虚线灰),比两条并排折线直观;chart 选型提示对应更新。247 测试。 |
 | 2026-06-12 | 0.3.3 | **叙事与内容打磨波次**:①前端 Lightbox 大图左右箭头/键盘切换(Approval+Result 共用);②图注注明原文图号(「图N | 描述」,子图「图N-子图i」);③**子图使用语义**(用户设计意图:拆图为横排同屏,非挑单张)——整图或同图多子图 figure_grid 横排,单子图仅限大幅机制图,小图禁单独成页;ingestion 记录像素尺寸(locator.px,缓存 v4),图清单标注尺寸与小图警示;④章节编号 chrome:section 分隔页大数字 01/02 + 页脚「02 · 章节名」编号面包屑;⑤结论式导读句 + 文献引用保留 (作者, 年份);CORS 放行任意 localhost 端口。245 测试。 |
 | 2026-06-12 | 0.3.2 | **盲测 R3:Design 追平(差 0 vs R1 0.625/R2 0.75)**,8/8→12/12 偏好仍对方但归因已收敛至 Coherence(-1.0)/Content(-0.375)。R3 速修:canvas 禁工具痕迹(Source/Evidence 字样)+禁无证据数据点+学术观感统一;骨架"总结收口(≤1 总结页)/展望须来自论文/toc-章节一一对应";critic 新增 toc-section 一致性检查(全局发现→全量重规划)与 [建议] 前缀建议性发现(不消耗重试预算,after_critic 过滤)。243 测试。 |
 | 2026-06-12 | 0.3.1 | **精品档转正 + 通用构图引擎**:premium 默认开启(骨架按页选 canvas/积木,积木为质量地板);canvas 确定性几何 lint(文本溢出/重叠估算,接入创作重试与 critic);12 个 MIT 构图范例 vendored+按页意图 few-shot 注入;**通用构图引擎替代枚举模板**(majors 侧排/网格、stat 顶带、callout 底带、双列表并排——"无模板匹配→纵向堆叠"失败类消除)。真模冒烟:范例引导下散点+对照表+诊断卡页,守卫与几何 lint 一次通过。241 测试。另修:拒绝反馈全量重规划、稀疏页 critic、grid 图数检查(0.3.0 后)。 |

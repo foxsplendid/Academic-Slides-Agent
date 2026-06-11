@@ -407,3 +407,26 @@ def test_caption_panel_letter_stripped(tmp_path):
     res = parse_mineru_content_list(blocks, assets_dir, "p.pdf", tmp_path / "ws", "p")
     cap = next(a for a in res.assets if a.kind == "figure").locator["caption"]
     assert cap.startswith("Fig. 4.")  # stray panel letter stripped
+
+
+def test_panel_caption_propagation():
+    from ingestion.mineru import _propagate_panel_captions
+    from slide_ir import EvidenceAsset
+
+    assets = [
+        EvidenceAsset(asset_id="f1", kind="figure", content_ref="a.png", source="p.pdf",
+                      locator={"page": 2, "caption": "a)P [GPa]"}),
+        EvidenceAsset(asset_id="f2", kind="figure", content_ref="b.png", source="p.pdf",
+                      locator={"page": 2, "caption": "(b)"}),
+        EvidenceAsset(asset_id="f3", kind="figure", content_ref="c.png", source="p.pdf",
+                      locator={"page": 2, "caption": "(c) FIGURE 1 | Dataset of P-T-X biotite"}),
+        # an unrelated single figure on another page stays untouched
+        EvidenceAsset(asset_id="g1", kind="figure", content_ref="g.png", source="p.pdf",
+                      locator={"page": 5, "caption": "FIGURE 4 | Something"}),
+    ]
+    _propagate_panel_captions(assets)
+    full = "(c) FIGURE 1 | Dataset of P-T-X biotite"
+    assert all(assets[i].locator["caption"] == full for i in range(3))  # propagated to all panels
+    assert [assets[i].locator["panel"] for i in range(3)] == [0, 1, 2]
+    assert all(assets[i].locator["fig_no"] == 1 for i in range(3))
+    assert "panel" not in assets[3].locator  # lone figure not touched

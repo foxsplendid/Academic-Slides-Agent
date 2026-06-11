@@ -97,7 +97,7 @@ block 之一:
   {"type":"figure","asset_id":"<指定的图 id>","caption":"<一句图注>"}
   {"type":"table","columns":["..."],"rows":[["..."]]}
   {"type":"formula","latex":"..."}
-  {"type":"chart","chart_type":"bar|line|scatter|pie","categories":["..."],"series":[{"name":"...","values":[1,2,3]}],"title":"..."}
+  {"type":"chart","chart_type":"bar|line|scatter|pie","categories":["..."],"series":[{"name":"...","values":[1,2,3]}],"title":"...","reference_line":false}
   {"type":"diagram","diagram_type":"flow|tree|cycle|comparison|pyramid|timeline","nodes":[{"id":"n1","label":"..."}],"edges":[{"source":"n1","target":"n2","label":"..."}],"title":"..."}
   {"type":"callout","label":"结论","text":"<一句话核心结论/启示>","icon":"bulb"}(本页有明确核心结论时,可用它替代最后一条 "→ " bullet)
   {"type":"stat","items":[{"value":"r=0.938","label":"验证集相关系数","icon":"target"}]}(1-4 个**来自证据的**关键数值,适合成果/指标页;严禁编造)
@@ -105,7 +105,7 @@ block 之一:
 要求:
 - **图表(chart)**:若本页证据里有一组可比较的数值(≥3 个类别/时间点/分组的指标,如各元素重要性、随时间的指标),\
 **优先输出 chart block 用原生图表可视化**,而不是仅用文字罗列。**选型**:类别间对比→`bar`;随时间/自变量的趋势→`line`;\
-占比/构成→`pie`;两变量相关性→`scatter`(用每个 series 的 `x` 与 `values` 配对)。`series.values` 与 `categories` 一一对应。\
+占比/构成→`pie`;两变量相关性→`scatter`(用每个 series 的 `x` 与 `values` 配对)。`series.values` 与 `categories` 一一对应。\n**预测值 vs 实测/已发表值的一致性**:不要画成两条并排折线(看不出吻合)——用**单个 scatter series**,`x`=参考值、`values`=预测值,并设 `"reference_line":true`(自动画 1:1 对角线,点贴线=吻合)。\
 **所有数字必须直接来自证据,严禁编造或估算**;证据里没有具体数值就不要出图表。
 - **逻辑图件(diagram)**:若本页讲的是一个**流程/步骤、方法对比、循环、层级、金字塔、时间线**等逻辑关系,\
 **优先输出 diagram block** 用原生图形表达,而不是堆 bullet。你只给**语义结构**(`nodes` 节点 + `edges` 有向边,`id` 自取、`label` 简短),\
@@ -120,7 +120,7 @@ block 之一:
 - 术语/符号/方法名/引用保持原文(Random Forest、SHAP、O₂、r=0.938、Lyons et al., 2014 等);**证据中给了文献出处的论断,要点里保留 (作者, 年份) 引用**;**论文核心术语全篇统一**(如 hygrometer=湿度计/含水量计,绝不可与温度计/温压计混写)
 - `**强调**`只给承载结论的关键词或数字,**宁少勿多**——强调泛滥等于没有强调
 - 若给了有效图 id:**沿用骨架规划的图类版式**(figure_caption/figure_left/big_figure/figure_grid),放对应 figure block(**asset_id 必须一字不差照抄给定 id**,grid 页放多个)+ 一句 caption,并配要点 bullet
-- **caption 写实并注明图号**:图注以原文图号开头——格式「**图N | 描述**」(N 从图注线索的 "Fig. N" 识别;识别不出就只写描述);只描述所选图**当前画面**;若是拆分出的子图,格式「图N-子图i | 描述」,不要提及其它子图的字母或内容
+- **caption 写实并注明图号**:图注以原文图号开头——格式「**图N | 描述**」(N 从图注线索的 "Fig. N"/"图N" 识别;识别不出就只写描述);只描述所选图**当前画面**;\n  子图(图注线索标注了「子图i」)用格式「图N-{a/b/c…} | 描述」,**描述只写你能从画面确认的内容,不确定就只保留图号、不要编造**;同一张图的多个子图各写各的当前画面,不要互相照搬。
 只输出该页 JSON,不要解释、不要 markdown 围栏。"""
 
 

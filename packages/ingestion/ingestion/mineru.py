@@ -213,6 +213,8 @@ def parse_mineru_content_list(
                         )
                     )
 
+    _propagate_panel_captions(result.assets)
+
     for page in sorted(page_text):
         result.assets.append(
             EvidenceAsset(
@@ -224,6 +226,36 @@ def parse_mineru_content_list(
             )
         )
     return result
+
+
+_FIG_NUM = re.compile(r"(?:Fig(?:ure)?\.?|图)\s*0*(\d+)", re.IGNORECASE)
+_PANEL_ONLY = re.compile(r"^\(?\s*[a-z]\s*\)?\b.{0,12}$", re.IGNORECASE)  # "(b)", "a)P [GPa]" — fragment
+
+
+def _propagate_panel_captions(assets: list) -> None:
+    """When MinerU extracts a multi-panel figure as separate same-page images, only one fragment
+    carries the full "FIGURE N | ..." caption and the siblings get stubs like "(b)". Without this,
+    the planner fabricates per-panel captions. Here: if a page has exactly ONE figure with a real
+    "FIGURE N" caption and the rest are fragments, propagate that caption + a panel index to all of
+    them so the menu shows the truth and the model labels them 图N-a/图N-b honestly."""
+    by_page: dict[int, list] = {}
+    for a in assets:
+        if a.kind == "figure" and isinstance(a.locator, dict) and a.locator.get("panel") is None:
+            by_page.setdefault(a.locator.get("page"), []).append(a)
+    for page, figs in by_page.items():
+        if len(figs) < 2:
+            continue
+        leads = [f for f in figs if _FIG_NUM.search(f.locator.get("caption", "") or "")]
+        frags = [f for f in figs if _PANEL_ONLY.match((f.locator.get("caption", "") or "").strip())]
+        # exactly one full caption + the others fragmentary -> they are panels of the same figure
+        if len(leads) == 1 and len(frags) >= 1 and len(leads) + len(frags) == len(figs):
+            full = leads[0].locator.get("caption", "")
+            m = _FIG_NUM.search(full)
+            fig_no = int(m.group(1)) if m else 0
+            for idx, f in enumerate(figs):  # keep extraction order as panel order
+                f.locator["caption"] = full
+                f.locator["panel"] = idx
+                f.locator["fig_no"] = fig_no
 
 
 # --------------------------------------------------------------------------- #

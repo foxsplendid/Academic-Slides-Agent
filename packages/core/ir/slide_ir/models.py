@@ -127,6 +127,7 @@ class ChartBlock(_BlockBase):
     categories: list[str] = Field(default_factory=list)  # x-axis labels for bar/line/pie
     series: list[ChartSeries] = Field(min_length=1)
     title: Optional[str] = None
+    reference_line: bool = False  # scatter only: draw a y=x line (predicted-vs-measured agreement)
 
 
 class DiagramNode(BaseModel):

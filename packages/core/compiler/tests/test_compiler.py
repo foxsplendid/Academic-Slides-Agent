@@ -983,3 +983,32 @@ def test_section_numeral_and_numbered_breadcrumb(tmp_path):
     assert "01" in sec1  # chapter numeral on the divider
     crumb2 = " ".join(sh.text_frame.text for sh in prs.slides[3].shapes if sh.has_text_frame)
     assert "02 · 结果" in crumb2  # numbered breadcrumb tracks the second chapter
+
+
+def test_scatter_reference_line_adds_diagonal_series(tmp_path):
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [
+            ChartBlock(
+                chart_type="scatter",
+                reference_line=True,
+                title="预测 vs 已发表",
+                series=[ChartSeries(name="样品", x=[2.1, 3.4, 5.2], values=[2.2, 3.5, 5.3])],
+            )
+        ],
+    )
+    out = compile_deck(deck, tmp_path / "agree.pptx")
+    chart = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_chart).chart
+    names = [s.name for s in chart.series]
+    assert "1:1" in names  # diagonal reference series present
+    assert len(names) == 2  # data series + reference line
+
+
+def test_scatter_without_reference_line_unchanged(tmp_path):
+    deck = _slide_of(
+        LayoutType.BULLET_EVIDENCE,
+        [ChartBlock(chart_type="scatter", series=[ChartSeries(name="s", x=[1, 2], values=[3, 4])])],
+    )
+    out = compile_deck(deck, tmp_path / "s.pptx")
+    chart = next(s for s in Presentation(str(out)).slides[0].shapes if s.has_chart).chart
+    assert [s.name for s in chart.series] == ["s"]  # no extra series

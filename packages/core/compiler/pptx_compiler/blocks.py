@@ -355,12 +355,24 @@ def render_chart(slide, block: ChartBlock, region: Region, style: StyleProfile =
     left, top, width, height = region
     if block.chart_type == "scatter":
         data = XyChartData()
+        all_x: list[float] = []
+        all_y: list[float] = []
         for s in block.series:
             series = data.add_series(s.name or "series")
             xs = s.x or list(range(1, len(s.values) + 1))
             for x, y in zip(xs, s.values):
                 series.add_data_point(float(x), float(y))
+                all_x.append(float(x))
+                all_y.append(float(y))
+        if block.reference_line and all_x and all_y:  # y=x agreement line spanning the data range
+            lo = min(min(all_x), min(all_y))
+            hi = max(max(all_x), max(all_y))
+            ref = data.add_series("1:1")
+            ref.add_data_point(lo, lo)
+            ref.add_data_point(hi, hi)
         frame = slide.shapes.add_chart(XL_CHART_TYPE.XY_SCATTER, left, top, width, height, data)
+        if block.reference_line:
+            _style_reference_line(frame.chart, style)
     else:
         n = len(block.categories) if block.categories else max(len(s.values) for s in block.series)
         cats = block.categories or [str(i + 1) for i in range(n)]
@@ -478,3 +490,30 @@ def render_figure(slide, block: FigureBlock, region: Region, asset_resolver=None
         text += f"\n{block.caption}"
     add_rich_text(tf.paragraphs[0], text, size=Pt(14), style=style)
     return box
+
+def _style_reference_line(chart, style: StyleProfile) -> None:
+    """Make the last series (the 1:1 line) a thin dashed grey line with no markers; data series
+    keep markers only (no connecting line) so the agreement against y=x reads clearly."""
+    try:
+        from pptx.oxml.ns import qn as _qn
+
+        sers = chart.series
+        for i, ser in enumerate(sers):
+            is_ref = i == len(sers) - 1
+            spPr = ser.format._element.get_or_add_spPr()
+            for tag in ("a:ln",):
+                for el in spPr.findall(_qn(tag)):
+                    spPr.remove(el)
+            ln = spPr.makeelement(_qn("a:ln"), {"w": "19050" if is_ref else "0"})
+            if is_ref:
+                fill = ln.makeelement(_qn("a:solidFill"), {})
+                clr = fill.makeelement(_qn("a:srgbClr"), {"val": str(style.muted_rgb)})
+                fill.append(clr)
+                ln.append(fill)
+                dash = ln.makeelement(_qn("a:prstDash"), {"val": "dash"})
+                ln.append(dash)
+            else:
+                ln.append(ln.makeelement(_qn("a:noFill"), {}))
+            spPr.append(ln)
+    except Exception:
+        pass
