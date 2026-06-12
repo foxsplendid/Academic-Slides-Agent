@@ -15,10 +15,18 @@ Third-party projects referenced as inspiration (permissive licenses only):
   - Westlake-AGI-Lab/Auto-Slides  (MIT) — academic multi-agent slide generation.
   - microsoft/markitdown          (MIT) — document -> Markdown ingestion.
 
-This project is a clean-room, independent implementation. It deliberately does
-NOT incorporate code, file structure, or copyrighted expression from any
-AGPL-licensed project (including PPTist, paper-ppt-agent, and PyMuPDF). Only
-ideas/requirements — which are not copyrightable — informed the design.
+This project's core (Slide-IR, agents, deterministic compiler) is a clean-room,
+independent implementation: it does NOT incorporate code, file structure, or
+copyrighted expression from any AGPL-licensed software (PPTist, PyMuPDF, or any
+AGPL-era revision of paper-ppt-agent). Only ideas/requirements — which are not
+copyrightable — informed that design.
+
+Two components ARE vendored verbatim, but exclusively from the **MIT-licensed**
+snapshot of CRui5in/paper-ppt-agent at commit 6f679fc (2026-05-15) — i.e. before
+that project relicensed to AGPL-3.0 (2026-05-22). Nothing from any AGPL-era
+revision is used. Full provenance, the exact commit, and our local modifications
+are documented in `packages/vendor/svg2pptx/README.md`. See the "Vendored"
+sections below.
 
 ------------------------------------------------------------------------
 Key runtime dependencies (all permissive — no copyleft):

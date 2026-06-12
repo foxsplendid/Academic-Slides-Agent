@@ -102,7 +102,14 @@ export function GenerateView() {
           <UploadCloud className="mb-2 h-8 w-8 text-primary" />
           <p className="text-sm font-medium">拖拽或点击选择文件</p>
           <p className="mt-1 text-xs text-slate-400">主论文 PDF + 补充数据(Excel / CSV / zip / 图片),可多选</p>
-          <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept=".pdf,.xlsx,.xls,.csv,.zip,.png,.jpg,.jpeg"
+            className="hidden"
+            onChange={(e) => addFiles(e.target.files)}
+          />
         </div>
         {files.length > 0 && (
           <ul className="mt-3 flex flex-wrap gap-2">

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.5.3 |
+| **Version** | 0.5.4 |
 | **Last updated** | 2026-06-03 |
 | **License** | Apache-2.0 |
 
@@ -391,6 +391,7 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 | 2026-06-06 | 0.1.18 | **Enhancement batch 3 — formula v1.5 (§6.2)**: MathJax(+mhchem) Node sidecar → resvg PNG behind a tiered `AutoFormulaRenderer` (simple→matplotlib, advanced→MathJax). **Chemistry/matrices now render instead of falling back to text** (verified `\ce{2H2+O2->2H2O}`, `pmatrix`, εNd). Optional (Node + `npm install`); arms-length subprocess (Apache/MPL, no linking). |
 | 2026-06-06 | 0.1.19 | **Template system v1 = style profiles**: the reference look is per-shape (not a master/theme), so a "template" is a `StyleProfile` of design tokens (fonts/sizes/colors/emphasis/diagram colors) the compiler applies. `ACADEMIC` (user-derived tokens) is default → output unchanged; `compile_deck(style=…)` / `ASA_STYLE` swap it (verified academic↔modern_teal change fonts/colors). Optional `.pptx` base template still supported for master-based themes. |
 | 2026-06-06 | 0.1.21 | **Figure panel splitting (opt-in)**: `ingestion/panels.py split_composite` — Pillow-only (numpy-free), AI-free band X-Y-cut gutter detection with conservative over-segmentation gates; under `ASA_SPLIT_FIGURES` each panel becomes a sibling `figure` asset (whole figure kept), flowing end-to-end with zero downstream changes. Verified 2×2→4 / 1×3→3; single/small don't split. |
+| 2026-06-12 | 0.5.4 | **公开发布准备**:本地测试产物清理(.tmp/exports/workspaces,均 gitignored);新增 `.env.example`(全量环境变量,无值);**修正 NOTICE 净室声明的自相矛盾**——明确两个 vendored 组件仅来自 paper-ppt-agent 的 MIT 快照(6f679fc,转 AGPL 之前),核心仍净室;**双语 README**(README.md 英文为主 + README.zh-CN.md,徽章/语言切换/更新至现状);UX 走查(简化配置面板、深色模式、文件类型 accept 过滤)。无源码逻辑改动,263 测试不变。 |
 | 2026-06-12 | 0.5.3 | **退回重做定向修复**(用户:打回指明「第14页」却没修)。根因:页码型反馈被当全局反馈→整份 deck 随机重滚(换页码/重滚同问题,像没修)。修复:`_reject_findings` 解析反馈里的「第N页/page N/N页」→映射到该页 slide_id→生成 `slide '<id>': 用户指出第N页的问题: ...` 走**定向修复**(其它页逐字保留,只重做该页,且图相关反馈带图清单);无页码才全量重规划。另:toc/章节数不一致的 critic 发现改为路由到 toc 页定向修复(改 bullets 对齐实际章节,止住空烧重试预算)。263 测试。注:本轮诊断发现用户看到的 14 页问题在退回后那版其实已修(v6 分组生效,图页全用 figure_grid)。 |
 | 2026-06-12 | 0.5.2 | **修「子图当整图」根因**(用户实测:图2/7/11 等显示子图却写整图注)。根因:MinerU 把合成图拆成同页多张子图,完整「FIGURE N」图注只挂其中一张,模型把那张当整图用、caption 描述了没显示的 (a)(b)。修复:①_propagate_panel_captions 重写为**同页同图号分组**——同页恰一个图号→全部同页顶层图(含带图注那张)标记为该图面板+组 id+总数(认得出图注为空的兄弟子图,旧规则只认「(b)」碎片);两个图号且≥4 张→标 ambiguous_panel 慎用;②split_composite 微碎片(<100px 边/<40k 面积)创建时过滤;③figure_menu **分组展示**:「图N(整图被拆成 K 张子图: ids)——用 figure_grid 放全部」;④骨架/扩写新规:标注「整图被拆成 N 张」的绝不能挑一张当整图,caption 只描述当前真实画面。缓存 v6。260 测试。 |
 | 2026-06-12 | 0.5.1 | **增强项收进默认**(用户需求):大图二次切割/VLM 视觉评审/精品档/原生公式四项从前端配置面板移除,后端 Form 默认全开——各自自动回退已验证(拆图 fail-open;VLM 未配模型或异常自动跳过;canvas 守卫重试+降级 bullet;OMML 带 LaTeX AlternateContent 降级)。前端配置面板仅剩风格/解析器/详细程度+导入模板。 |
