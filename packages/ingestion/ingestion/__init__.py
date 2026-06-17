@@ -3,6 +3,7 @@
 from .archive import ingest_zip
 from .docling_parser import docling_available, ingest_pdf_docling
 from .figures import extract_figures
+from .handoff import ingest_handoff, is_handoff_dir
 from .mineru import ingest_pdf_mineru, parse_mineru_content_list
 from .panels import split_composite
 from .models import IngestResult
@@ -19,6 +20,8 @@ __all__ = [
     "ingest_xlsx",
     "ingest_pdf",
     "ingest_zip",
+    "ingest_handoff",
+    "is_handoff_dir",
     "extract_figures",
     "ingest_pdf_mineru",
     "parse_mineru_content_list",

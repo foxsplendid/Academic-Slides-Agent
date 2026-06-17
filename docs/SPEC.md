@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Status** | Living document — authoritative technical constraints |
-| **Version** | 0.5.4 |
-| **Last updated** | 2026-06-03 |
+| **Version** | 0.5.5 |
+| **Last updated** | 2026-06-17 |
 | **License** | Apache-2.0 |
 
 > **Maintenance rule (binding).** This document is the single source of truth for
@@ -262,6 +262,12 @@ ingest → abstract → outline ─▶[interrupt: approve/edit outline]─▶ ma
 - **Priority: structured supplementary data.** `.xlsx/.csv` → DataFrame → `TableBlock`
   (lossless) via `pandas` (BSD) / `openpyxl` (MIT). This is where dense data lives and it is easy.
 - **Archives:** unpack `.zip`, route by extension (xlsx/csv→table; pdf→text/figure; png→figure).
+- **Handoff packages (Scriptorium):** a directory carrying `meta.json` (contract `handoff/1.x`, from
+  Steward `pick`) is a curated report package — single- or multi-paper (`papers[]`), with a
+  `report_type` (literature | experiment). Each paper's PDF flows through the standard cascade; the
+  `meta.json` `title/authors/year/doi` are injected as provenance (a `section_text` "本报告基于 …"
+  basis asset + per-paper metadata). Stdlib-only backend (`ingestion/handoff.py`); the contract is
+  owned by the scriptorium-spec repo (the coordination point).
 - **Main doc:** prefer **LaTeX source** (`\begin{table}` parses cleanly); else PDF→Markdown via
   `markitdown` (MIT).
 - **PDF tables (best-effort only):** `pdfplumber` (MIT) for ruled tables; low-quality tables
@@ -370,6 +376,7 @@ Privacy (self-host OSS) answers "why open source"; convenience (managed/private-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-06-17 | 0.5.5 | **取件包入口(Phase E)**:ingestion 新增 `handoff/1.x` 取件包后端(`ingestion/handoff.py`,纯 stdlib,过 Apache-2.0 门槛)——目录含 `meta.json`(Steward `pick` 产物)即识别;router 加目录分支(非取件包目录仍跳过、不抛错)。每篇 PDF 走既有解析级联,`meta` 的 `title/authors/year/doi` 作为 provenance 注入(一个 `section_text` 「本报告基于 …」基底资产 + 每篇元数据资产),讲者备注可据此引用出处。**提议契约升级 `handoff/1.1`**:加 `report_type: literature\|experiment` + 多篇 `papers[]`(向后兼容 1.0 单篇);契约由 scriptorium-spec 仓库统一协调。多篇资产 id 加 `p{n}_` 前缀防冲突。无 IR/编译器改动。新增 12 测试。 |
 | 2026-06-03 | 0.1.0 | Initial constitution: Apache-2.0 clean-room; LLM-locked-to-IR; LangGraph; export-first v1; formula SVG-first; Evidence-Pool ingestion; license forbidden-list (PPTist/PyMuPDF). |
 | 2026-06-03 | 0.1.1 | Formula v1 changed from MathJax→SVG to **matplotlib mathtext→PNG** (in-process, BSD, privacy-friendly, direct python-pptx embedding); MathJax/SVG deferred to v1.5 behind the same `FormulaRenderer` interface. |
 | 2026-06-03 | 0.1.2 | Critic §6.5 v1 landed: **deterministic, AI-free `critique_deck`** measuring Slide-IR + a **bounded `plan↔critic` retry loop** (feedback to planner, `max_retries`) running before the Hard-Stop. VLM critic stays v2. |

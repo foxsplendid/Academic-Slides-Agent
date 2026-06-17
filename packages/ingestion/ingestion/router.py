@@ -109,6 +109,12 @@ def ingest_path(
     cache_dir: Optional[str | Path] = None,
 ) -> IngestResult:
     path = Path(path)
+    if path.is_dir():  # a Scriptorium handoff package (dir + meta.json) — else a plain dir is skipped
+        from .handoff import ingest_handoff, is_handoff_dir
+
+        if is_handoff_dir(path):
+            return ingest_handoff(path, workspace=workspace, cache_dir=cache_dir)
+        return IngestResult()
     ext = path.suffix.lower()
     if ext in (".xlsx", ".xlsm"):
         return ingest_xlsx(path)
