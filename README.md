@@ -47,11 +47,13 @@ attachments   cascade      Pool       skeleton→expand→critic    (JSON)    (n
 
 ## What it does
 
-**Ingestion** — multi-file input (PDF + Excel/CSV/zip/images). Quality-gated parser cascade: **MinerU**
-cloud API (high-fidelity text/formulas/tables/figures) → **Docling** (MIT, optional) → **pdfplumber**
-(always-available local fallback). Content-addressed parse cache; per-run isolation; composite-figure
-panel detection and same-page panel grouping so multi-panel figures are never used as if they were the
-whole figure.
+**Ingestion** — multi-file input (PDF + Excel/CSV/zip/images), **or a Scriptorium `handoff/1.x` package**
+(a directory with `meta.json` + one or more PDFs, staged by [Steward](https://github.com/scriptorium-suite/steward)
+`pick`): single-paper or a multi-paper literature/experiment report, with title/authors/year/DOI injected
+as provenance. Quality-gated parser cascade: **MinerU** cloud API (high-fidelity text/formulas/tables/figures)
+→ **Docling** (MIT, optional) → **pdfplumber** (always-available local fallback). Content-addressed parse
+cache; per-run isolation; composite-figure panel detection and same-page panel grouping so multi-panel
+figures are never used as if they were the whole figure.
 
 **Planning** — a two-stage planner (skeleton → per-slide focused expansion, each slide seeing its own
 evidence at full resolution), expanded in parallel. Academic 组会 narrative with per-slide speaker notes,
