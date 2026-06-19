@@ -21,12 +21,19 @@ MAX_PANELS = 12
 MAX_DEPTH = 3
 
 
+def _flat(img: Image.Image) -> list[float]:
+    # Pillow 12 renamed getdata() -> get_flattened_data() (getdata removed in 14);
+    # fall back to getdata() on Pillow < 12 (the project floor is Pillow>=10).
+    flatten = getattr(img, "get_flattened_data", img.getdata)
+    return list(flatten())
+
+
 def _line_means(gray: Image.Image, axis: str) -> list[float]:
     """Per-row (axis='row') or per-column (axis='col') mean intensity, via a 1-px BOX resize."""
     w, h = gray.size
     if axis == "row":
-        return list(gray.resize((1, h), Image.Resampling.BOX).getdata())
-    return list(gray.resize((w, 1), Image.Resampling.BOX).getdata())
+        return _flat(gray.resize((1, h), Image.Resampling.BOX))
+    return _flat(gray.resize((w, 1), Image.Resampling.BOX))
 
 
 def _interior_cuts(means: list[float], axis_len: int) -> list[int]:

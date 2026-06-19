@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests + license gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv (Python 3.12)
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install workspace (editable)
+        # All packages on one command so the inter-package deps resolve from the
+        # provided set; matches README. svg2pptx's LGPL raster-fallback extra is
+        # intentionally omitted (kept isolated; see SPEC §2 / NOTICE).
+        run: |
+          uv venv
+          uv pip install \
+            -e "packages/core/ir[dev]" \
+            -e "packages/core/compiler[dev]" \
+            -e "packages/core/formula[dev]" \
+            -e "packages/ingestion[dev]" \
+            -e "packages/agents[dev]" \
+            -e packages/vendor/svg2pptx \
+            -e "packages/providers[openai,dev]" \
+            -e "apps/api[dev]"
+
+      - name: License gate (fail on GPL/AGPL — SPEC §2)
+        run: .venv/bin/python scripts/license_scan.py
+
+      - name: Run tests
+        run: .venv/bin/python -m pytest -q
