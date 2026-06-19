@@ -38,21 +38,47 @@ def _normalize(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
-def _license_texts(dist: metadata.Distribution) -> list[str]:
+def _structured_license_ids(dist: metadata.Distribution) -> list[str]:
+    """Authoritative, machine-readable license signals: the SPDX
+    ``License-Expression`` and the Trove ``License ::`` classifiers."""
     md = dist.metadata
-    texts: list[str] = []
-    for key in ("License", "License-Expression"):
-        val = md.get(key)
-        if val and val.strip().upper() != "UNKNOWN":
-            texts.append(val)
+    ids: list[str] = []
+    expr = md.get("License-Expression")
+    if expr and expr.strip().upper() != "UNKNOWN":
+        ids.append(expr)
     for classifier in md.get_all("Classifier") or []:
         if classifier.startswith("License ::"):
-            texts.append(classifier)
-    return texts
+            ids.append(classifier)
+    return ids
 
 
-def _forbidden_reason(texts: list[str]) -> str | None:
-    for text in texts:
+def _freeform_license_id(dist: metadata.Distribution) -> str | None:
+    """The free-text ``License`` field, trusted only when it reads as a short
+    *identifier* (e.g. "AGPL-3.0-or-later"), never a full agreement body.
+
+    Permissive packages dump entire license texts into this field, and some —
+    like matplotlib — concatenate the licenses of their *bundled* third-party
+    components (matplotlib 3.11's 64 KB ``License`` field includes FreeType's
+    "FTL OR GPL-2.0-or-later" notice). Substring-scanning that body flags a
+    BSD/PSF package as GPL. Copyleft dists that declare a real classifier or SPDX
+    expression are still caught by :func:`_structured_license_ids`; dists whose
+    metadata lies outright are caught by ``BANNED_NAMES``.
+    """
+    val = dist.metadata.get("License")
+    if not val:
+        return None
+    val = val.strip()
+    if not val or val.upper() == "UNKNOWN" or "\n" in val or len(val) > 100:
+        return None
+    return val
+
+
+def _forbidden_reason(dist: metadata.Distribution) -> str | None:
+    candidates = _structured_license_ids(dist)
+    freeform = _freeform_license_id(dist)
+    if freeform:
+        candidates.append(freeform)
+    for text in candidates:
         # Mask LGPL tokens first so the GPL pattern can't catch the substring.
         masked = LGPL.sub("", text)
         if FORBIDDEN.search(masked):
@@ -73,7 +99,7 @@ def main() -> int:
         if norm in BANNED_NAMES:
             violations.append((name, version, "banned by name (GPL/AGPL)"))
             continue
-        reason = _forbidden_reason(_license_texts(dist))
+        reason = _forbidden_reason(dist)
         if reason:
             violations.append((name, version, f"license: {reason.strip()}"))
 
