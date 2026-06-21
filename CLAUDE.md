@@ -4,6 +4,13 @@ Part of the **Scriptorium suite** — its reporting tool. Turns a paper (PDF) or
 
 > Past decisions & cross-project history live in the **Provenance** memory hub — query via prov-mcp (`get_current_context`, `search_brain`). Much of ASA's design happened in the catch-all `Dialogue` session, so consult Provenance + this file + docs/SPEC.md rather than expect local chat history here.
 
+## Related / 相关文档
+
+[README](README.md) · [中文 README.zh](README.zh.md) · [CLAUDE](CLAUDE.md) · [docs/SPEC](docs/SPEC.md)
+
+**Suite / 套件:** [scriptorium-spec](https://github.com/scriptorium-suite/scriptorium-spec) (contract SSoT) · [steward](https://github.com/scriptorium-suite/steward) · [Provenance](https://github.com/foxsplendid/Provenance) · [Academic-Slides-Agent / Lectern](https://github.com/foxsplendid/Academic-Slides-Agent) · [.github](https://github.com/scriptorium-suite/.github)
+> Contract facts are canonical in **scriptorium-spec/README**; other repos mirror, never fork them.
+
 ## What this is
 Pipeline: ingest paper/handoff → **evidence pool** → **human-approved outline** (gate) → editable `.pptx`. Python monorepo (uv/hatchling editable workspace under `packages/` + `apps/`) + a React/Vite web UI (`apps/web`). Python **≥ 3.12**. Spec: `docs/SPEC.md` (v0.5.5). API: `python -m asa_api` (default 127.0.0.1:8000; routes `POST /jobs/upload`, `GET /jobs/{id}/stream`, `POST /jobs/{id}/approve`, `GET /jobs/{id}/download`). Providers: openai | deepseek | anthropic. Styles: academic | modern_teal.
 
@@ -15,4 +22,4 @@ Pipeline: ingest paper/handoff → **evidence pool** → **human-approved outlin
 
 ## Conventions
 - Code/comments in English. Packages: `asa-{slide-ir, pptx-compiler, formula, ingestion, agents, providers, svg2pptx, api}`.
-- Remote: `foxsplendid/Academic-Slides-Agent` (move into scriptorium-suite org is pending). See README.md / README.zh.md.
+- Remote: `foxsplendid/Academic-Slides-Agent` (stays in foxsplendid/ — decided 2026-06-19, will NOT migrate to the scriptorium-suite org). See README.md / README.zh.md.

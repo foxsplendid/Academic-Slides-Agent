@@ -9,6 +9,13 @@ English | [中文](README.zh.md)
 [![Tests](https://img.shields.io/badge/tests-275_passing-brightgreen.svg)](#status)
 [![Spec](https://img.shields.io/badge/SPEC-v0.5.5-informational.svg)](docs/SPEC.md)
 
+## Related / 相关文档
+
+[README](README.md) · [中文 README.zh](README.zh.md) · [CLAUDE](CLAUDE.md) · [docs/SPEC](docs/SPEC.md)
+
+**Suite / 套件:** [scriptorium-spec](https://github.com/scriptorium-suite/scriptorium-spec) (contract SSoT) · [steward](https://github.com/scriptorium-suite/steward) · [Provenance](https://github.com/foxsplendid/Provenance) · [Academic-Slides-Agent / Lectern](https://github.com/foxsplendid/Academic-Slides-Agent) · [.github](https://github.com/scriptorium-suite/.github)
+> Contract facts are canonical in **scriptorium-spec/README**; other repos mirror, never fork them.
+
 ## Overview
 
 Academic-Slides-Agent (aka *Lectern*) converts a hard-science paper — or a Scriptorium `handoff/1.x`

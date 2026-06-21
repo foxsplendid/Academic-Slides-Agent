@@ -9,6 +9,13 @@
 [![Tests](https://img.shields.io/badge/tests-275_passing-brightgreen.svg)](#状态)
 [![Spec](https://img.shields.io/badge/SPEC-v0.5.5-informational.svg)](docs/SPEC.md)
 
+## 相关文档
+
+[README](README.md) · [中文 README.zh](README.zh.md) · [CLAUDE](CLAUDE.md) · [docs/SPEC](docs/SPEC.md)
+
+**套件:** [scriptorium-spec](https://github.com/scriptorium-suite/scriptorium-spec)(契约 SSoT)· [steward](https://github.com/scriptorium-suite/steward) · [Provenance](https://github.com/foxsplendid/Provenance) · [Academic-Slides-Agent / Lectern](https://github.com/foxsplendid/Academic-Slides-Agent) · [.github](https://github.com/scriptorium-suite/.github)
+> 契约事实以 **scriptorium-spec/README** 为准;其他仓库镜像,绝不另立分叉。
+
 ## 概述
 
 Academic-Slides-Agent(又名 *Lectern*)把一篇硬科学论文——或一个 Scriptorium `handoff/1.x` 包——转成
