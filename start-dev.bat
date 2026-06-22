@@ -19,7 +19,7 @@ set "BACKEND_URL=http://127.0.0.1:%ASA_PORT%"
 rem ---- preflight checks --------------------------------------
 if not exist "%PY%" (
   echo [x] .venv not found at %PY%
-  echo     Create it first:  python -m venv .venv  ^&^& editable-install the packages.
+  echo     Create it first:  uv sync --all-packages
   pause
   exit /b 1
 )

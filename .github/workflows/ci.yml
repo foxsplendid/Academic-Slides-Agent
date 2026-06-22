@@ -21,21 +21,12 @@ jobs:
           python-version: "3.12"
 
       - name: Install workspace (editable)
-        # All packages on one command so the inter-package deps resolve from the
-        # provided set; matches README. svg2pptx's LGPL raster-fallback extra is
-        # intentionally omitted (kept isolated; see SPEC §2 / NOTICE).
-        run: |
-          uv venv
-          uv pip install \
-            -e "packages/core/ir[dev]" \
-            -e "packages/core/compiler[dev]" \
-            -e "packages/core/formula[dev]" \
-            -e "packages/ingestion[dev]" \
-            -e "packages/agents[dev]" \
-            -e packages/vendor/svg2pptx \
-            -e "packages/providers[openai,dev]" \
-            -e "apps/api[dev]" \
-            -e "apps/cli[dev]"
+        # One command installs every workspace member editable + the shared dev
+        # tooling from the root pyproject; a new package under packages/ or apps/
+        # is picked up automatically (no install list to maintain here). The LGPL
+        # svg2pptx `raster-fallback` extra and the heavy `docling` extra are NOT
+        # enabled (kept isolated — SPEC §2 / NOTICE).
+        run: uv sync --all-packages --locked
 
       - name: License gate (fail on GPL/AGPL — SPEC §2)
         run: .venv/bin/python scripts/license_scan.py

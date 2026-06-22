@@ -12,13 +12,6 @@ dev = ["pytest>=8"]
 [project.scripts]
 lectern = "asa_cli.__main__:main"
 
-[tool.uv.sources]
-asa-slide-ir = { path = "../../packages/core/ir", editable = true }
-asa-agents = { path = "../../packages/agents", editable = true }
-asa-ingestion = { path = "../../packages/ingestion", editable = true }
-asa-formula = { path = "../../packages/core/formula", editable = true }
-asa-providers = { path = "../../packages/providers", editable = true }
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
