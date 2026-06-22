@@ -86,6 +86,16 @@ cd apps/web && npm install && npm run dev   # http://localhost:5173
 也可直接调 API:`POST /jobs/upload`(摄取输入)→ `GET /jobs/{id}/stream`(SSE)→ 审阅大纲 →
 `POST /jobs/{id}/approve` → `GET /jobs/{id}/download`。
 
+**无头 CLI(agent 驱动)。** 无人值守 / agent 使用时,`lectern` CLI 用同一套管线直出 `.pptx`、无需 web UI(安装:`uv pip install -e apps/cli`):
+
+```bash
+lectern build <handoff目录|pdf> --out deck.pptx            # 完整跑;自动通过大纲闸
+lectern outline <handoff目录|pdf> --out outline.json       # 停在大纲(可选审阅闸)
+lectern build --from-outline outline.json --out deck.pptx  # 从审阅后的大纲恢复
+```
+
+`build` 一条命令直出(自动通过大纲闸),让 agent 从 Scriptorium `handoff` 包直达成片;`outline` → `--from-outline` 这对把大纲审阅变成可选的文件契约步(人或 agent 审批)。复用与 API 相同的 LangGraph 图+编译器(无独立管线)。
+
 配置通过环境变量进行(完整带注释列表见 [`.env.example`](.env.example))。核心项:
 
 | 变量 | 用途 |
@@ -111,6 +121,7 @@ packages/
   vendor/svg2pptx    # asa-svg2pptx:vendored 的 MIT SVG→DrawingML 引擎(来源见其 README)
 apps/
   api                # asa-api:FastAPI 服务(SSE、上传、审批、下载、断点续跑)
+  cli                # asa-cli:无头 `lectern` CLI(handoff → .pptx;可选大纲文件契约闸)
   web                # asa-web:React + Vite + Tailwind 导出优先 UI
 docs/SPEC.md         # 架构宪法(活文档 + 变更日志)
 openspec/            # 规范驱动开发:specs/(现行)+ changes/archive/(历史)

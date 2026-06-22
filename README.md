@@ -96,6 +96,20 @@ cd apps/web && npm install && npm run dev   # http://localhost:5173
 Or drive the API directly: `POST /jobs/upload` (ingest inputs) → `GET /jobs/{id}/stream` (SSE) → review
 the outline → `POST /jobs/{id}/approve` → `GET /jobs/{id}/download`.
 
+**Headless CLI (agent-driven).** For unattended / agent use, the `lectern` CLI runs the same
+pipeline to a `.pptx` without the web UI (install: `uv pip install -e apps/cli`):
+
+```bash
+lectern build <handoff-dir|pdf> --out deck.pptx            # full run; auto-approves the outline
+lectern outline <handoff-dir|pdf> --out outline.json       # stop at the outline (optional review gate)
+lectern build --from-outline outline.json --out deck.pptx  # resume from a reviewed outline
+```
+
+`build` is the one-shot path (auto-approves the outline gate) so an agent can go from a
+Scriptorium `handoff` package straight to a deck; the `outline` → `--from-outline` pair makes
+the outline review an optional file-contract step a human or agent can approve. It reuses the
+same LangGraph graph + compiler as the API (no separate pipeline).
+
 Configuration is via environment variables (see [`.env.example`](.env.example) for the full annotated
 list). The essentials:
 
@@ -122,6 +136,7 @@ packages/
   vendor/svg2pptx    # asa-svg2pptx: vendored MIT SVG→DrawingML engine (see its README for provenance)
 apps/
   api                # asa-api: FastAPI service (SSE, upload, approve, download, durable resume)
+  cli                # asa-cli: headless `lectern` CLI (handoff → .pptx; optional outline file-contract gate)
   web                # asa-web: React + Vite + Tailwind export-first UI
 docs/SPEC.md         # architecture constitution (living document + changelog)
 openspec/            # spec-driven development: specs/ (live) + changes/archive/ (history)
