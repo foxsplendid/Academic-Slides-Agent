@@ -48,6 +48,12 @@ svglib / reportlab / docling are absent and openai is present.
 relying on it to drag `asa-pptx-compiler` in transitively. `asa-pptx-compiler` is now declared
 directly, so the API no longer breaks if `asa-agents` ever drops it.
 
+Symmetrically, `asa-pptx-compiler`'s canvas path imports `asa_svg2pptx`, which was undeclared.
+Because the compiler **fails open** when that engine is absent (`canvas.py canvas_engine_available()`),
+it is declared as an **optional** `canvas` extra rather than a hard dependency — truthful about the
+import without forcing the engine on every compiler consumer. In the workspace it is always
+co-installed (it is a member), so the canvas path is exercised.
+
 ## Alternatives considered
 
 - **B — scripted glob install.** Keep the per-package `-e` list but generate it from a script that

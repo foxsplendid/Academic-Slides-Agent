@@ -39,3 +39,8 @@ relying on transitive resolution.
 #### Scenario: The API declares the compiler it imports
 - **WHEN** `apps/api` imports `pptx_compiler`
 - **THEN** `asa-pptx-compiler` appears in `apps/api`'s declared dependencies
+
+#### Scenario: A fail-open optional engine is declared as an extra
+- **WHEN** `asa-pptx-compiler` imports `asa_svg2pptx` only on its fail-open canvas path
+- **THEN** `asa-svg2pptx` is declared as an optional `canvas` extra of `asa-pptx-compiler`, not a
+  hard dependency
