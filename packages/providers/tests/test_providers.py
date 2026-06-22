@@ -82,11 +82,32 @@ def test_provider_from_env_unknown_raises(monkeypatch):
 
 
 def test_resolve_deepseek_profile_with_env(monkeypatch):
+    # This asserts the profile *defaults*, so clear any ambient override that a stray .env
+    # may have leaked into os.environ (python-dotenv's load_dotenv() walks up the tree, so a
+    # parent checkout's .env can pollute the global env for the whole pytest session).
+    monkeypatch.delenv("ASA_DEEPSEEK_MODEL", raising=False)
+    monkeypatch.delenv("ASA_LLM_MODEL", raising=False)
+    monkeypatch.delenv("ASA_DEEPSEEK_BASE_URL", raising=False)
     monkeypatch.setenv("ASA_DEEPSEEK_API_KEY", "dk")
     cfg = resolve_openai_profile("deepseek")
     assert cfg["base_url"] == "https://api.deepseek.com"
     assert cfg["api_key"] == "dk"
     assert cfg["model"] == "deepseek-chat"
+
+
+def test_profile_default_is_hermetic_against_leaked_model_override(monkeypatch):
+    """Regression: an ambient ASA_DEEPSEEK_MODEL (e.g. injected by python-dotenv finding a
+    parent repo's .env and mutating the global os.environ) must not silently change what a
+    profile-*default* test resolves. Clearing the override restores the documented default."""
+    monkeypatch.setenv("ASA_DEEPSEEK_API_KEY", "dk")
+    # A leaked override is honoured by resolution — this is exactly the pollution that bit the
+    # default test when it ran after an app test that had loaded a stray .env:
+    monkeypatch.setenv("ASA_DEEPSEEK_MODEL", "leaked-deepseek-vX")
+    assert resolve_openai_profile("deepseek")["model"] == "leaked-deepseek-vX"
+    # Clearing the overrides (what the hermetic default tests do) restores the profile default:
+    monkeypatch.delenv("ASA_DEEPSEEK_MODEL", raising=False)
+    monkeypatch.delenv("ASA_LLM_MODEL", raising=False)
+    assert resolve_openai_profile("deepseek")["model"] == "deepseek-chat"
 
 
 def test_resolve_profile_env_overrides_base_url_and_model(monkeypatch):
