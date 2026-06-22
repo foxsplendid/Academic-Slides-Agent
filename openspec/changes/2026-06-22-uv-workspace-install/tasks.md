@@ -9,6 +9,7 @@
 
 - [x] 2.1 Remove per-package `[tool.uv.sources]` (api, cli, agents, compiler, ingestion, providers)
 - [x] 2.2 `apps/api`: declare the directly-imported `asa-pptx-compiler` dependency
+- [x] 2.3 `asa-pptx-compiler`: declare its optional `asa-svg2pptx` engine as a `canvas` extra (fail-open)
 
 ## 3. Install / CI / launcher
 

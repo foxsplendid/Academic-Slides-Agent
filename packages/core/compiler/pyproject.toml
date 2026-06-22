@@ -8,6 +8,10 @@ dependencies = ["python-pptx>=1.0", "asa-slide-ir"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+# Optional engine for the premium VisualCanvas tier (SVG -> editable DrawingML).
+# The compiler fails open when it is absent (see canvas.py canvas_engine_available),
+# so it is declared optional, not required. In the workspace it is always present.
+canvas = ["asa-svg2pptx"]
 
 [build-system]
 requires = ["hatchling"]
