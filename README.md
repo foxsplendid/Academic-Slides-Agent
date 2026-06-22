@@ -69,11 +69,11 @@ A Python monorepo of editable workspace packages (under `packages/` and `apps/`)
 Requires **Python 3.12+** and Node.js (for the web UI and the MathJax formula sidecar).
 
 ```bash
-# 1) Python deps — editable install of the workspace packages (uv recommended; pip works too)
-uv venv && . .venv/bin/activate          # or: python -m venv .venv && source .venv/bin/activate
-uv pip install -e packages/core/ir -e packages/core/compiler -e packages/core/formula \
-               -e packages/ingestion -e packages/agents -e packages/vendor/svg2pptx \
-               -e "packages/providers[openai]" -e apps/api     # or providers[anthropic]
+# 1) Python deps — install the whole uv workspace editable in one command.
+#    Creates .venv and installs every package under packages/ + apps/ plus the
+#    shared dev tooling (pytest etc.). Adds the openai client; for Anthropic also
+#    run:  uv pip install "anthropic>=0.40"
+uv sync --all-packages
 
 # 2) Configure — copy the template and fill in your own keys
 cp .env.example .env        # then edit .env (it is gitignored — never commit real keys)

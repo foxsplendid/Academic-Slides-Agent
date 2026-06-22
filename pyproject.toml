@@ -1,0 +1,44 @@
+# Workspace root for Academic-Slides-Agent (Lectern).
+#
+# This is a VIRTUAL project (package = false): it is never built or published.
+# It exists only to declare the uv workspace and the shared dev tooling, so the
+# whole monorepo installs editable with a single `uv sync --all-packages` and a
+# new package under packages/ or apps/ is picked up automatically — no install
+# list to hand-maintain (CI + README both call `uv sync`).
+[project]
+name = "academic-slides-agent"
+version = "0"
+description = "Academic-Slides-Agent (Lectern) workspace root — see packages/ and apps/."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+# Globs auto-discover members; excluded are the empty placeholder dirs (future
+# add-template-mapper) and the React frontend (apps/web is an npm package, no
+# pyproject.toml) — neither is a Python distribution.
+members = ["packages/core/*", "packages/ingestion", "packages/agents", "packages/providers", "packages/vendor/*", "apps/*"]
+exclude = ["packages/core/mapper", "packages/core/tables", "apps/web"]
+
+# Every inter-package dependency resolves from the workspace. Inherited by all
+# members, so individual packages no longer need their own [tool.uv.sources].
+[tool.uv.sources]
+asa-slide-ir = { workspace = true }
+asa-pptx-compiler = { workspace = true }
+asa-formula = { workspace = true }
+asa-ingestion = { workspace = true }
+asa-agents = { workspace = true }
+asa-providers = { workspace = true }
+asa-svg2pptx = { workspace = true }
+asa-api = { workspace = true }
+asa-cli = { workspace = true }
+
+# Shared dev tooling — installed by `uv sync` (the default group). Aggregates the
+# per-package [dev] extras (pytest everywhere, jsonschema for slide-ir, httpx for
+# the api tests) and pulls the openai client via the providers extra so the
+# provider tests run. The LGPL svg2pptx `raster-fallback` extra and the heavy
+# `docling` extra are deliberately NOT enabled (license/size — SPEC §2).
+[dependency-groups]
+dev = ["pytest>=8", "jsonschema>=4", "httpx>=0.27", "asa-providers[openai]"]

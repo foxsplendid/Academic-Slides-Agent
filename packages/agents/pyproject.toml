@@ -9,10 +9,6 @@ dependencies = ["asa-slide-ir", "asa-pptx-compiler", "langgraph>=0.2"]
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 
-[tool.uv.sources]
-asa-slide-ir = { path = "../core/ir", editable = true }
-asa-pptx-compiler = { path = "../core/compiler", editable = true }
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
