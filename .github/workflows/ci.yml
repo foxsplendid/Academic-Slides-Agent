@@ -34,7 +34,8 @@ jobs:
             -e "packages/agents[dev]" \
             -e packages/vendor/svg2pptx \
             -e "packages/providers[openai,dev]" \
-            -e "apps/api[dev]"
+            -e "apps/api[dev]" \
+            -e "apps/cli[dev]"
 
       - name: License gate (fail on GPL/AGPL — SPEC §2)
         run: .venv/bin/python scripts/license_scan.py
