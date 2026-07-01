@@ -45,3 +45,6 @@ workspaces/
 exports/
 *.pptx
 !templates/**/*.pptx
+
+# Local Claude Code settings
+.claude/
